@@ -1,45 +1,51 @@
 <script setup>
-import { Howl, Howler } from 'howler'
-// Example: play a sound
-const sound = new Howl({
-  src: ['/sounds/example.mp3']  // path to your audio file
+import { onMounted } from 'vue'
+import { enableDragDrop } from '/resources/js/scripts.js'
+
+onMounted(() => {
+  enableDragDrop()
 })
-
-function playSound() {
-  sound.play()
-}
-
 </script>
 
 <template>
-    <div class="top-game-container">
-        Šis ir spēles logs
-        <button @click="playSound">Play Sound</button>
-        <div class="tree-row">
+  <div class="top-container">
+    <div class="tree-row">
+        <div id="dropzone1" class="dropzone">
             <img src="/public/tree1.png" alt="">
-            <button @click="playSound">Play Sound</button>
         </div>
-        <button @click="playSound">Play Sound</button>
-    </div>
+        <div id="dropzone2" class="dropzone">
+            <img src="/public/tree1.png" alt="">
+        </div>
+        <div id="dropzone3" class="dropzone">
+            <img src="/public/tree1.png" alt="">
+        </div>
+        <div id="dropzone4" class="dropzone">
+            <img src="/public/tree1.png" alt="">
+        </div>
+    </div> 
+  </div>
 </template>
 
 <style>
-.top-game-container {
-    height: 50vh; /* half of screen height */
-    background-color: green;
-    text-align: center;
-    overflow: hidden;
-    box-shadow: black 2px solid;
-
-
-}
 .tree-row{
+    display: flex;
     height: 100%;
-    width: 100%;
+
 }
-.tree-row img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+.top-container {
+  width: 100%;
+  height: 50vh;
+  background: green;
+}   
+
+.dropzone {
+  width: 150px;
+  height: 100%;
+  border-right: 2px solid black;
+}
+.dropzone img{
+  width: 100%;
+  height: 100%;
+  border-right: 2px solid black;
 }
 </style>
