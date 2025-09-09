@@ -1,7 +1,9 @@
 import interact from 'interactjs'
 
+export const animalPositions = {}
+
 export function enableDragDrop() {
-  // Collect all drop zones and get their center positions
+  
   const dropzones = document.querySelectorAll('.dropzone')
   const snapTargets = []
 
@@ -13,13 +15,13 @@ export function enableDragDrop() {
     })
   })
 
-  // Make draggables snap to those positions
+  
   interact('.draggable').draggable({
     modifiers: [
       interact.modifiers.snap({
         targets: snapTargets,
-        range: 100,           // optional: max snap distance
-        relativePoints: [{ x: 0.5, y: 0.5 }] // snap to the center of the draggable
+        range: 100, 
+        relativePoints: [{ x: 0.5, y: 0.5 }]
       })
     ],
     listeners: {
@@ -39,10 +41,17 @@ export function enableDragDrop() {
   interact('.dropzone')
     .dropzone({
       ondrop: (event) => {
-        console.log(event.relatedTarget.id + ' was dropped into ' + event.target.id)
+        const animalId = event.relatedTarget.id
+        const dropzoneId = event.target.id
+
+        // save globally
+        animalPositions[dropzoneId] = animalId
       }
     })
     .on('dropactivate', (event) => {
       event.target.classList.add('drop-activated')
     })
+}
+export function printLocations(){
+  console.log(animalPositions)
 }

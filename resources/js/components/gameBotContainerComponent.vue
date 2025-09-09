@@ -1,15 +1,23 @@
 <script setup>
 import { onMounted } from 'vue'
-import { enableDragDrop } from '/resources/js/scripts.js'
+import { enableDragDrop, printLocations } from '/resources/js/scripts.js'
 
 onMounted(() => {
   enableDragDrop()
 })
+
+function play() {
+  printLocations()
+}
 </script>
 
 <template>
   <div class="bottom-container">
     <img id="bird1" src="/public/bird1.png" alt="Bird" class="draggable">
+    <img id="bear1" src="/public/bear1.png" alt="bear" class="draggable">
+
+    <!-- Vue way -->
+    <button @click="play">Play</button>
   </div>
 </template>
 
