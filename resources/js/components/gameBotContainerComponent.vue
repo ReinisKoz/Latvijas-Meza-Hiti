@@ -1,13 +1,13 @@
 <script setup>
 import { onMounted } from 'vue'
-import { enableDragDrop, printLocations } from '/resources/js/scripts.js'
+import { enableDragDrop, playAnimalBeat } from '/resources/js/scripts.js'
 
 onMounted(() => {
   enableDragDrop()
 })
 
 function play() {
-  printLocations()
+  playAnimalBeat()
 }
 </script>
 
