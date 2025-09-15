@@ -12,15 +12,16 @@ export function enableDragDrop() {
   const snapTargetIds = {}
   var freeSnapTargets = []
   var animalsInDeck = document.querySelectorAll('.animal')
-  var animalDeckPositions = []
+  var animalDeckPositions = {}
+  var isSnappedToSomething = true;
 
   // Saglabā izejas pozīcijas dzīvniekiem
   animalsInDeck.forEach((animal) => {
     const rect = animal.getBoundingClientRect()
-    animalDeckPositions.push({
+    animalDeckPositions[animal.id] = {
       x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    })
+      y: rect.top + rect.height / 2 - 400,
+    }
   })
 
   let i = 0;
@@ -57,7 +58,7 @@ export function enableDragDrop() {
         const target = event.target
 
         // Iegūst nomešanas zonas identifikātoru
-        var isSnappedToSomething = true;
+        isSnappedToSomething = true;
         var dropzoneId;
         try {
           dropzoneId = event.dropzone.id;
@@ -79,15 +80,35 @@ export function enableDragDrop() {
         }
 
         // Izdzēš aizņemtās pozīcijas
-        console.log(freeSnapTargets);
         if (isSnappedToSomething) {
           for (const dz in animalPositions) {
             delete freeSnapTargets[snapTargetIds[dz]];
           }
         }
+      },
+      end(event) {
+        const animal = event.target;
+        var dropzoneId;
+        try {
+          dropzoneId = event.dropzone.id;
+        } catch (err) {
+          // console.log(animal.id);
+          // console.log(animalDeckPositions);
+          const deckPosition = animalDeckPositions[animal.id];
+          // console.log(deckPosition);
+          const x = deckPosition['x'];
+          const y = deckPosition['y'];
+
+          animal.style.transform = `translate(${x}px, ${y}px)`
+          animal.setAttribute('data-x', x)
+          animal.setAttribute('data-y', y)
+        
+        }
+
+        // if (isSnappedToSomething === false) {
+        // }
       }
     },
-    
   })
   // Islēdz nomešanas zonas
   interact('.dropzone')
@@ -111,9 +132,24 @@ export function enableDragDrop() {
         animalPositions[dropzoneId] = animalId;
     },
     })
-    // .on('dropactivate', (event) => {
-    //   event.target.classList.add('drop-activated')
-    // })
+    .on('dropactivate', (event) => {
+      // const animal = event.relatedTarget;
+      
+      event.target.classList.add('drop-activated')
+
+      // if (isSnappedToSomething === false) {
+      //   console.log(animal.id);
+      //   console.log(animalDeckPositions);
+      //   const deckPosition = animalDeckPositions[animal.id];
+      //   console.log(deckPosition);
+      //   const x = deckPosition['x'];
+      //   const y = deckPosition['y'];
+
+      //   animal.style.transform = `translate(${x}px, ${y}px)`
+      //   animal.setAttribute('data-x', x)
+      //   animal.setAttribute('data-y', y)
+      // }
+    })
     
 }
 export function playAnimalBeat() {

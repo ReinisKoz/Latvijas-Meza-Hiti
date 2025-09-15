@@ -35,6 +35,7 @@ onMounted(() => {
 .tree-row{
     display: flex;
     height: 100%;
+    /* overflow: auto; */
 
 }
 .top-container {
