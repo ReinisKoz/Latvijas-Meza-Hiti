@@ -13,8 +13,8 @@ function play() {
 
 <template>
   <div class="bottom-container">
-    <img id="bird1" src="/public/bird1.png" alt="Bird" class="draggable animal">
-    <img id="bear1" src="/public/bear1.png" alt="bear" class="draggable animal">
+    <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal">
+    <img id="bear-0" src="/public/bear1.png" alt="bear" class="draggable animal">
 
     <!-- Vue way -->
     <button @click="play">Play</button>

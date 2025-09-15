@@ -22,7 +22,7 @@ onMounted(() => {
             v-for="n in zonesPerTree"
             :key="n"
             class="dropzone"
-            :id="`dropzone${rowIndex}${colIndex}${n}`"
+            :id="`dropzone${rowIndex}-${colIndex}${n}`"
           ></div>
         </div>
         <img src="/public/tree1.png" alt="" />
@@ -46,12 +46,12 @@ onMounted(() => {
 
 .overlay div {
   flex: 1;                     /* equal height for 3 divs */
-  border: 1px solid white;
-  background-color: rgba(0, 0, 255, 0.3); /* semi-transparent overlay */
+  /* border: 1px solid white; */
+  background-color: rgba(0, 0, 0, 0.0); /* semi-transparent overlay */
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  /* color: white; */
   font-weight: bold;
 }
 
