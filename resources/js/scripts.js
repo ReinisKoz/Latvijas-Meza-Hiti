@@ -9,58 +9,112 @@ export function enableDragDrop() {
   
   const dropzones = document.querySelectorAll('.dropzone')
   const snapTargets = []
+  const snapTargetIds = {}
+  var freeSnapTargets = []
+  var animalsInDeck = document.querySelectorAll('.animal')
+  var animalDeckPositions = []
 
-  dropzones.forEach((dz) => {
-    const rect = dz.getBoundingClientRect()
-    snapTargets.push({
+  // Saglabā izejas pozīcijas dzīvniekiem
+  animalsInDeck.forEach((animal) => {
+    const rect = animal.getBoundingClientRect()
+    animalDeckPositions.push({
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
     })
   })
 
+  let i = 0;
+  dropzones.forEach((dz) => {
+
+    // Saaglabā pzīcijas nomešanas zonām
+    const rect = dz.getBoundingClientRect()
+    snapTargets.push({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    })
+
+    // Saglabā nomešanas zonu identifikātorus
+    snapTargetIds[dz.id] = i;
+    i++;
+    
+  })
+
+  // Izveido dziļo kopiju nomešanas zonām
+  freeSnapTargets = structuredClone(snapTargets);
+
   
   interact('.draggable').draggable({
+    // Inicializē nomešanas zonas
     modifiers: [
       interact.modifiers.snap({
-        targets: snapTargets,
+        targets: freeSnapTargets,
         range: 100, 
-        relativePoints: [{ x: 0.5, y: 0.5 }]
+        relativePoints: [{ x: 0.5, y: 0.5 }],
       })
     ],
     listeners: {
       move(event) {
         const target = event.target
+
+        // Iegūst nomešanas zonas identifikātoru
+        var isSnappedToSomething = true;
+        var dropzoneId;
+        try {
+          dropzoneId = event.dropzone.id;
+        } catch (err) {
+          isSnappedToSomething = false;
+        }
+        
+        // Kustina mērķi līdzi pelei
         const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx
         const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy
 
         target.style.transform = `translate(${x}px, ${y}px)`
         target.setAttribute('data-x', x)
         target.setAttribute('data-y', y)
-      }
-    }
-  })
 
-  // Enable dropzones
+        // Atjauno nomešanas zonas
+        for (var i = 0; i < snapTargets.length; i++) {
+          freeSnapTargets[i] = snapTargets[i];
+        }
+
+        // Izdzēš aizņemtās pozīcijas
+        console.log(freeSnapTargets);
+        if (isSnappedToSomething) {
+          for (const dz in animalPositions) {
+            delete freeSnapTargets[snapTargetIds[dz]];
+          }
+        }
+      }
+    },
+    
+  })
+  // Islēdz nomešanas zonas
   interact('.dropzone')
     .dropzone({
+      ondragenter: (event) => {
+        const animalId = event.relatedTarget.id;
+        const dropzoneId = event.target.id;
+
+        // Izdzēš iepriekšējo dzīvnieka pozīciju
+        if (dropzoneId in animalPositions) {
+          if (animalPositions[dropzoneId] == animalId) {
+            delete animalPositions[dropzoneId];
+          }
+        }
+      },
       ondrop: (event) => {
         const animalId = event.relatedTarget.id;
         const dropzoneId = event.target.id;
 
-        // Remove previous positions for this animal
-        for (const dz in animalPositions) {
-            if (animalPositions[dz] === animalId) {
-                delete animalPositions[dz];
-            }
-        }
-
-        // Save new position
+        // Saglabā jauno dzīvnieka pozīciju
         animalPositions[dropzoneId] = animalId;
-    }
+    },
     })
-    .on('dropactivate', (event) => {
-      event.target.classList.add('drop-activated')
-    })
+    // .on('dropactivate', (event) => {
+    //   event.target.classList.add('drop-activated')
+    // })
+    
 }
 export function playAnimalBeat() {
     if (!animalPositions || Object.keys(animalPositions).length === 0) return;
