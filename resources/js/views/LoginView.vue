@@ -1,21 +1,23 @@
 <template>
   <div class="page">
-    <!-- Mākoņi un putni -->
+    <!-- Mākoņi (nekustīgi) -->
     <div class="cloud cloud1"></div>
     <div class="cloud cloud2"></div>
     <div class="cloud cloud3"></div>
+
+    <!-- Putni (kustīgi) -->
     <div class="bird">🐦</div>
     <div class="bird" style="top: 30%; animation-delay: 5s;">🕊️</div>
     <div class="bird" style="top: 70%; animation-delay: 10s;">🐤</div>
 
-    <!-- Reģistrācija -->
+    <!-- Login -->
     <div class="login-container">
       <div class="login-header">
-        <h1>CREATE ACCOUNT</h1>
-        <p>Please fill in your details</p>
+        <h1>WELCOME BACK!</h1>
+        <p>Please login to your account</p>
       </div>
 
-      <form @submit.prevent="register">
+      <form @submit.prevent="login">
         <div class="form-group">
           <label for="username">Username</label>
           <input
@@ -23,17 +25,6 @@
             id="username"
             v-model="username"
             placeholder="Enter your username"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            v-model="email"
-            placeholder="Enter your email"
             required
           />
         </div>
@@ -49,24 +40,14 @@
           />
         </div>
 
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <input
-            type="password"
-            id="confirmPassword"
-            v-model="confirmPassword"
-            placeholder="Confirm your password"
-            required
-          />
-        </div>
-
-        <button type="submit" class="btn-login">REGISTER</button>
+        <button type="submit" class="btn-login">LOGIN</button>
 
         <div class="error-message">{{ errorMessage }}</div>
       </form>
 
       <div class="login-footer">
-        <p>Already have an account? <a href="#">Login</a></p>
+        <p>Don't have an account? <a href="#">Sign Up</a></p>
+        <p><a href="#">Forgot Password?</a></p>
       </div>
     </div>
   </div>
@@ -74,32 +55,29 @@
 
 <script>
 export default {
-  name: "RegistrationPage",
+  name: "LoginPage",
   data() {
     return {
       username: "",
-      email: "",
       password: "",
-      confirmPassword: "",
       errorMessage: "",
     };
   },
   methods: {
-    register() {
-      if (!this.username || !this.email || !this.password || !this.confirmPassword) {
+    login() {
+      if (!this.username || !this.password) {
         this.errorMessage = "Please fill in all fields!";
         return;
       }
 
-      if (this.password !== this.confirmPassword) {
-        this.errorMessage = "Passwords do not match!";
-        return;
-      }
-
-      this.errorMessage = "Creating account...";
+      this.errorMessage = "Logging in...";
 
       setTimeout(() => {
-        this.errorMessage = "Registration successful! Redirecting...";
+        if (this.username === "admin" && this.password === "password") {
+          this.errorMessage = "Login successful! Redirecting...";
+        } else {
+          this.errorMessage = "Invalid username or password!";
+        }
       }, 1000);
     },
   },
@@ -125,12 +103,11 @@ export default {
   overflow: hidden;
 }
 
+/* Login box */
 .login-container {
   background-color: #228b22;
   border-radius: 20px;
-  padding-inline: 30px;
-  padding-top: 7px;
-  padding-bottom: 7px;
+  padding: 30px;
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
   color: white;
   width: 100%;
@@ -227,7 +204,7 @@ export default {
   min-height: 20px;
 }
 
-/* Mākoņi */
+/* Mākonīši */
 .cloud {
   position: absolute;
   background: white;
