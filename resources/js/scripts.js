@@ -67,7 +67,7 @@ export function enableDragDrop() {
     modifiers: [
       interact.modifiers.snap({
         targets: freeSnapTargets,
-        range: 61, 
+        range: 100, 
         relativePoints: [{ x: 0.5, y: 0.5 }],
       })
     ],
@@ -83,7 +83,17 @@ export function enableDragDrop() {
 
           console.log(splitedId.number === 0);
 
+          delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === event.target.id)];
+          for (var i = 0; i < snapTargets.length; i++) {
+            freeSnapTargets[i] = snapTargets[i];
+          }
+          for (const dz in animalPositions) {
+            delete freeSnapTargets[snapTargetIds[dz]];
+          }
+
           if (splitedId.number === 0) {
+
+            
 
             
             // Position clone exactly over the original
@@ -97,7 +107,8 @@ export function enableDragDrop() {
             
             console.log(splitedId);
             // console.log(++animalDeckPositions[splitedId.letters])
-            clone.id = splitedId.letters + '-' + String(++animalDeckPositions[splitedId.letters]);
+            clone.id = splitedId.letters + '-0';
+            original.id = splitedId.letters + '-' + String(++animalDeckPositions[splitedId.letters]);
 
             // Add to DOM
             original.parentNode.appendChild(clone);
@@ -107,27 +118,25 @@ export function enableDragDrop() {
             // event.interactable.draggable().options.listeners.end(event);
             
             // event.target = clone; // redirect dragging to the clone
-            const interaction = event.interaction;
 
-            if (!interaction.interacting()) {
-              // dynamically pick a target to drag
-              // const newTarget = document.querySelector('.dynamic-target');
+            
+
+            const interaction = event.interaction;
+            interaction.start(
+              { name: 'drag' },   // action
+              interact(clone), // new target
+              clone            // element
+            );
+            
+            // if (!interaction.interacting()) {
+            //   // dynamically pick a target to drag
+            //   // const newTarget = document.querySelector('.dynamic-target');
               
-              interaction.start(
-                { name: 'drag' },   // action
-                interact(clone), // new target
-                clone            // element
-              );
-            }
+              
+            // }
           } else {
             
-            delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === event.target.id)];
-            for (var i = 0; i < snapTargets.length; i++) {
-              freeSnapTargets[i] = snapTargets[i];
-            }
-            for (const dz in animalPositions) {
-              delete freeSnapTargets[snapTargetIds[dz]];
-            }
+            
           }
           
         }
@@ -214,17 +223,17 @@ export function enableDragDrop() {
   // Islēdz nomešanas zonas
   interact('.dropzone')
     .dropzone({
-      ondragenter: (event) => {
-        const animalId = event.relatedTarget.id;
-        const dropzoneId = event.target.id;
+      // ondragenter: (event) => {
+      //   const animalId = event.relatedTarget.id;
+      //   const dropzoneId = event.target.id;
 
-        // Izdzēš iepriekšējo dzīvnieka pozīciju
-        // if (dropzoneId in animalPositions) {
-        //   if (animalPositions[dropzoneId] == animalId) {
-        //     delete animalPositions[dropzoneId];
-        //   }
-        // }
-      },
+      //   // Izdzēš iepriekšējo dzīvnieka pozīciju
+      //   // if (dropzoneId in animalPositions) {
+      //   //   if (animalPositions[dropzoneId] == animalId) {
+      //   //     delete animalPositions[dropzoneId];
+      //   //   }
+      //   // }
+      // },
       ondrop: (event) => {
         const animalId = event.relatedTarget.id;
         const dropzoneId = event.target.id;
