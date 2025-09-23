@@ -46,7 +46,7 @@
       </form>
 
       <div class="login-footer">
-        <p>Don't have an account? <a href="#">Sign Up</a></p>
+        <p>Don't have an account? <router-link to="/register">Sign up</router-link></p>
         <p><a href="#">Forgot Password?</a></p>
       </div>
     </div>
