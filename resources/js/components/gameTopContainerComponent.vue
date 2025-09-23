@@ -1,13 +1,22 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, reactive } from 'vue'
 import { enableDragDrop } from '/resources/js/scripts.js'
+import { timeline } from '/resources/js/scripts.js'
 import { defineProps } from "vue";
 
-const props = defineProps({
-  rows: { type: Number, default: 1 },          // rindu skaits
-  cols: { type: Number, default: 10 },          // kolonnu skaits (koku skaits)
-  zonesPerTree: { type: Number, default: 5 },  // rindu skaits (vietas katrā kokā)
-});
+// export const timelineSize = {
+//   'cols': 10,
+//   'rows': 5
+// };
+
+// const props = defineProps({
+//   rows: { type: Number, default: 1 },          // rindu skaits
+//   cols: { type: Number, default: timeline['cols'] },          // kolonnu skaits (koku skaits)
+//   zonesPerTree: { type: Number, default: timeline['rows'] },  // rindu skaits (vietas katrā kokā)
+// });
+
+const props = reactive(timeline);
+
 onMounted(() => {
   enableDragDrop()
 })
@@ -15,14 +24,15 @@ onMounted(() => {
 
 <template>
   <div class="top-container">
-    <div class="tree-row" v-for="rowIndex in rows" :key="rowIndex">
-      <div class="dropzone-container" v-for="colIndex in cols" :key="colIndex">
+    <!-- <div class="tree-row" v-for="rowIndex in rows" :key="rowIndex"> -->
+    <div class="tree-row">
+      <div class="dropzone-container" v-for="colIndex in props.cols" :key="colIndex">
         <div class="overlay">
           <div
-            v-for="n in zonesPerTree"
+            v-for="n in props.rows"
             :key="n"
             class="dropzone"
-            :id="`dropzone${rowIndex}-${colIndex}${n}`"
+            :id="`dropzone-${colIndex * props.cols + n}`"
           ></div>
         </div>
         <img src="/public/tree1.png" alt="" />
@@ -32,16 +42,19 @@ onMounted(() => {
 </template>
 
 <style>
-.tree-row{
-    display: flex;
-    height: 100%;
-    /* overflow: auto; */
-
+.tree-row {
+  display: flex;
+  height: 100%;
+  flex-wrap: nowrap;     /* force items to stay on one line */
 }
+
 .top-container {
   width: 100%;
   height: 50vh;
   background: green;
+  overflow-x: auto;     /* enable horizontal scrolling */
+  overflow-y: hidden;   /* prevent vertical scroll inside */
+  white-space: nowrap;  /* ensure columns stay in one row */
 }
 
 .overlay div {
@@ -55,42 +68,51 @@ onMounted(() => {
   font-weight: bold;
 }
 
+.dropzone-container {
+  position: relative;
+}
+
 .overlay {
-  position: absolute;          /* position over image */
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;      /* stack divs vertically */
+  flex-direction: column;
+  z-index: 2; /* ✅ force overlay above tree image */
 }
 
-.dropzone-container {
-  width: 150px;
+.dropzone-container > img {
+  min-width: 60%;
   height: 100%;
-  border-right: 2px solid black;
-  display: flex;           /* Enable Flexbox */
-  align-items: center;     /* Vertically center content if needed */
-  justify-content: space-between; /* Distribute space evenly */
-  flex-direction: column;
+  object-fit: cover;
+  display: block;
   position: relative;
+  z-index: 1; /* ✅ keep image below overlay */
 }
 
 .dropzone {
-  flex: 1;                 /* All divs take equal width */
-  margin: 0 10px;          /* Optional spacing between divs */
+  flex: 1;
+  margin: 0 10px;
   height: 100px;
   background-color: lightblue;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
+  position: relative;
+  z-index: 3; /* ✅ animals/dropped elements are always on top */
 }
-.dropzone-container img{
-  width: 100%;
-  height: 100%;
-  border-right: 2px solid black;
-  object-fit: cover;
-  display: block;
+.animal {
+  width: 80px;
+  height: 80px;
+  color: white;
+  border-radius: 8px;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  z-index: 4; /* ✅ highest layer */
 }
+
 </style>

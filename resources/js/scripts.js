@@ -2,7 +2,40 @@ import interact from 'interactjs'
 import {Howl, Howler} from 'howler';
 import * as Tone from 'tone';
 
-function splitId(id) {
+let snapTargets = []; // make sure this is accessible globally
+let dropzones = document.querySelectorAll('.dropzone');
+
+// Async function to recalculate dropzone positions
+async function updateSnapTargets() {
+  snapTargets = []; // reset old values
+  dropzones = document.querySelectorAll('.dropzone');
+
+  dropzones.forEach((dz) => {
+    const rect = dz.getBoundingClientRect();
+    snapTargets.push({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    });
+  });
+
+  return snapTargets; // useful if you want to await results
+}
+
+// Run once on load
+updateSnapTargets();
+
+// Run again whenever window resizes (debounced for performance)
+let resizeTimeout;
+window.addEventListener('resize', async () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(async () => {
+    await updateSnapTargets();
+    console.log("Snap targets updated:", snapTargets);
+  }, 150); // debounce delay
+});
+
+
+function splitAnimalId(id) {
   console.log(id);
   const parts = id.split('-'); // split by dash
   if (parts.length === 2) {
@@ -19,28 +52,59 @@ function splitId(id) {
   }
 }
 
+function splitDropZonelId(id) {
+  console.log(id);
+  const parts = id.split('-'); // split by dash
+  if (parts.length === 2) {
+    // const rowPart = parseInt(parts[1], 10); // convert to integer
+    // if (isNaN(numberPart)) {
+    //   return null; // invalid number
+    // }
+    const numberPart = parseInt(parts[1], 10); // convert to integer
+    if (isNaN(numberPart)) {
+      return null; // invalid number
+    }
+    return {
+      letters: parts[0],
+      row: numberPart % timeline.rows,
+      col: Math.floor(numberPart / timeline.rows)
+    };
+  } else {
+    return null; // invalid format
+  }
+}
+
 export const animalPositions = {}
 
 export function enableDragDrop() {
   
-  const dropzones = document.querySelectorAll('.dropzone')
-  const snapTargets = []
+  // const dropzones = document.querySelectorAll('.dropzone')
+  // const snapTargets = []
   const snapTargetIds = {}
   var freeSnapTargets = []
   var animalsInDeck = document.querySelectorAll('.animal')
+  var animalTypes = {}
   var animalDeckPositions = {}
   var isSnappedToSomething = true;
+  const animalDeck = document.getElementById('animal-deck');
 
   // Saglabā izejas pozīcijas dzīvniekiem
   animalsInDeck.forEach((animal) => {
     const rect = animal.getBoundingClientRect()
-    animalDeckPositions[splitId(animal.id).letters] = 0
+    const animalType = splitAnimalId(animal.id).letters;
+    animalTypes[animalType] = 0
+    animalDeckPositions[animalType] = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    }
     // {
     //   // x: rect.left + rect.width / 2,
     //   // y: rect.top + rect.height / 2 - 400,
     //   lastI: 0
     // }
   })
+
+  console.log(animalDeckPositions);
 
   let i = 0;
   dropzones.forEach((dz) => {
@@ -74,12 +138,53 @@ export function enableDragDrop() {
     listeners: {
       start(event) {
         var dropzoneId;
+        const original = event.target;
+        // original.parentNode()
+
+        // console.log('animal-' + splitAnimalId(original.id).letters);
+        // document.getElementById(splitAnimalId(original.id).letters + '-card').appendChild(original);
+        // original.style.transform = `translate(${0}px, ${0}px)`;
+        // const animalRectBefore = original.getBoundingClientRect();
+        
+
+        // original.style.position = 'absolute';
+        // // console.log(document.getElementById('animal-deck'));
+        // // document.getElementById('animal-deck').appendChild(original);
+        // const animalRectAfter = original.getBoundingClientRect();
+
+        // const deltaX = animalRectAfter.left - animalRectBefore.left;
+        // const deltaY = animalRectAfter.top - animalRectBefore.top;
+        // original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
+        // if (splitAnimalId(original).number != 0) {
+        //   const animalRectAfter = original.getBoundingClientRect();
+
+        //   const deltaX = animalRectAfter.left - animalRectBefore.left;
+        //   const deltaY = animalRectAfter.top - animalRectBefore.top;
+        //   original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
+        // } else {
+        //   const animalPos = animalDeckPositions[splitAnimalId(original)];
+        //   original.style.transform = `translate(${animalPos.x}px, ${animalPos.y}px)`;
+        // }
+        
+
         try {
           dropzoneId = event.relatedTarget.id;
         } catch (err) {
-          const original = event.target;
+
+          original.style.transform = `translate(${0}px, ${0}px)`;
+          console.log('animal-' + splitAnimalId(original.id).letters);
+          document.getElementById(splitAnimalId(original.id).letters + '-card').appendChild(original);
+          
+          const animalRectBefore = original.getBoundingClientRect();
+          original.style.position = 'absolute';
+          const animalRectAfter = original.getBoundingClientRect();
+
+          const deltaX = animalRectAfter.left - animalRectBefore.left;
+          const deltaY = animalRectAfter.top - animalRectBefore.top;
+          original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
+          
           const clone = original.cloneNode(true);
-          const splitedId = splitId(original.id);
+          const splitedId = splitAnimalId(original.id);
 
           console.log(splitedId.number === 0);
 
@@ -108,7 +213,7 @@ export function enableDragDrop() {
             console.log(splitedId);
             // console.log(++animalDeckPositions[splitedId.letters])
             clone.id = splitedId.letters + '-0';
-            original.id = splitedId.letters + '-' + String(++animalDeckPositions[splitedId.letters]);
+            original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters]);
 
             // Add to DOM
             original.parentNode.appendChild(clone);
@@ -158,9 +263,9 @@ export function enableDragDrop() {
         } catch (err) {
           isSnappedToSomething = false;
         }
-        const splitedId = splitId(target.id);
+        const splitedId = splitAnimalId(target.id);
         if (splitedId.number === 0) {
-          target = document.getElementById(splitedId.letters + '-' + String(animalDeckPositions[splitedId.letters]));
+          target = document.getElementById(splitedId.letters + '-' + String(animalTypes[splitedId.letters]));
         }
 
         // Kustina mērķi līdzi pelei
@@ -183,6 +288,19 @@ export function enableDragDrop() {
 
           if (animalPositions[dropzoneId] != animal.id) {
             animal.remove();
+          } else {
+            
+            // target.setAttribute('data-x', 0)
+            // target.setAttribute('data-y', 0)
+            const animalRectBefore = animal.getBoundingClientRect();
+            animal.style.transform = `translate(${0}px, ${0}px)`;
+            event.relatedTarget.appendChild(animal);
+            const animalRectAfter = animal.getBoundingClientRect();
+
+            const deltaX = animalRectAfter.left - animalRectBefore.left;
+            const deltaY = animalRectAfter.top - animalRectBefore.top;
+            animal.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
+
           }
           // if (dropzoneId === undefined) {
           //   event.target.remove();
@@ -265,6 +383,15 @@ export function enableDragDrop() {
     })
     
 }
+
+export const timeline = {
+  'cols': 120,
+  'rows': 5,
+  'bpm': 60,
+  'length': 10,
+  'volume': 1.0
+};
+
 export function playAnimalBeat() {
     if (!animalPositions || Object.keys(animalPositions).length === 0) return;
 
@@ -275,27 +402,48 @@ export function playAnimalBeat() {
         console.log("AudioContext resumed");
 
         // Set BPM
-        Tone.Transport.bpm.value = 90;
+        Tone.Transport.bpm.value = 60;
 
         // Map animals to players
-        const players = entries.map(([dropzone, animal]) => {
-            return new Tone.Player(`/sounds/${animal}.mp3`).toDestination();
+        // const players = entries.map(([dropzone, animal]) => {
+        //     return new Tone.Player(`/sounds/${splitAnimalId(animal).letters + +1}.mp3`).toDestination();
+        // });
+        const animals = ['bird', 'bear'];
+        const players = [];
+        animals.forEach((animal) => {
+          players.push(new Tone.Player(`/sounds/${animal + +1}.mp3`).toDestination());
         });
+
+        // const players = 
 
         // Create a simple 4-step beat sequence
         // You can expand this as you like
-        const beatPattern = [
-            [1, 0, 1, 0], // player 0 (kick)
-            [0, 1, 0, 1], // player 1 (snare)
-            [0, 1, 1, 1]  // player 2 (hi-hat)
-        ];
+        // const beatPattern = [
+        //     [1, 0, 1, 0], // player 0 (kick)
+        //     [0, 1, 0, 1], // player 1 (snare)
+        //     [0, 1, 1, 1]  // player 2 (hi-hat)
+        // ];
+
+        const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0));
+        console.log(beatPattern);
+        Object.keys(animalPositions).forEach(pos => {
+          const animal = animalPositions[pos];
+          console.log(splitDropZonelId(pos));
+          const { letters, row, col } = splitDropZonelId(pos);
+          // console.log(col);
+          // console.log('efefef0');
+          // console.log(animals.indexOf(splitAnimalId(animal).letters));
+          // console.log('efefef1');
+          beatPattern[animals.indexOf(splitAnimalId(animal).letters)][col] = 1;
+        });
+        console.log(beatPattern);
 
         players.forEach((player, i) => {
             if (!beatPattern[i]) return; // skip extra players
 
             const seq = new Tone.Sequence((time, step) => {
                 if (beatPattern[i][step]) player.start(time);
-            }, [0, 1, 2, 3], "4n"); // 4 steps = 4 quarter notes
+            }, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "10n"); // 4 steps = 4 quarter notes
 
             seq.start(0);
         });
