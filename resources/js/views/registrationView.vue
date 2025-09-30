@@ -1,3 +1,32 @@
+<script setup>
+  import axios from 'axios';
+  import { ref } from 'vue';
+
+  const name = ref('');
+  const email = ref('');
+  const password = ref('');
+  const password_confirmation = ref('');
+
+  const loginUser = async () => {
+    try {
+      const response = await axios.post('/api/register', {
+        name: name.value,
+        email: email.value,
+        password: password.value
+      });
+
+      console.log(response.data);
+    } catch (error) {
+
+      console.error(error.response ? error.response.data : error.message);
+    }
+  };
+
+
+
+</script>
+
+
 <template>
   <div class="page">
     <!-- Mākoņi un putni -->
@@ -60,7 +89,7 @@
           />
         </div>
 
-        <button type="submit" class="btn-login" :disabled="loading">
+        <button type="submit" class="btn-login" v-on:click="loginUser"  :disabled="loading">
           {{ loading ? 'CREATING ACCOUNT...' : 'REGISTER' }}
         </button>
 
@@ -75,89 +104,7 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios';
 
-export default {
-  name: "RegistrationPage",
-  data() {
-    return {
-      name: "",
-      email: "",
-      password: "",
-      password_confirmation: "",
-      errorMessage: "",
-      validationErrors: {},
-      successMessage: "",
-      loading: false
-    };
-  },
-  methods: {
-    async register() {
-      this.errorMessage = "";
-      this.validationErrors = {};
-      this.successMessage = "";
-      this.loading = true;
-
-      try {
-        // Izveidojam datu objektu
-        const formData = {
-          name: this.name,
-          email: this.email,
-          password: this.password,
-          password_confirmation: this.password_confirmation
-        };
-
-        // Izmantojam tikai axios, nevis api
-        const response = await axios.post('http://localhost:8000/api/register', formData, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          }
-        });
-        
-        console.log('Registration success:', response.data);
-        
-        // Pārbaudām atbildes struktūru
-        if (response.data.access_token) {
-          localStorage.setItem('auth_token', response.data.access_token);
-          localStorage.setItem('user', JSON.stringify(response.data.user || response.data.data));
-          
-          this.successMessage = "Reģistrācija veiksmīga! Novirzām uz galveno lapu...";
-          
-          setTimeout(() => {
-            this.$router.push('/dashboard');
-          }, 2000);
-        } else {
-          this.errorMessage = "Reģistrācija veiksmīga, bet trūkst autorizācijas datu.";
-        }
-        
-      } catch (error) {
-        console.error('Registration error:', error);
-        
-        if (error.response && error.response.status === 422) {
-          this.validationErrors = error.response.data.errors || {};
-          this.errorMessage = "Lūdzu, izlabojiet validācijas kļūdas:";
-          
-          // Parādām pirmo kļūdu
-          const firstError = Object.values(this.validationErrors)[0];
-          if (firstError && firstError[0]) {
-            this.errorMessage += " " + firstError[0];
-          }
-        } else if (error.response && error.response.data.message) {
-          this.errorMessage = error.response.data.message;
-        } else if (error.request) {
-          this.errorMessage = "Nevar sazināties ar serveri. Pārbaudiet, vai Laravel serveris darbojas.";
-        } else {
-          this.errorMessage = "Reģistrācija neizdevās. Lūdzu, mēģiniet vēlreiz.";
-        }
-      } finally {
-        this.loading = false;
-      }
-    }
-  }
-};
-</script>
 
 <style scoped>
 /* Jūsu esošie stili paliek nemainīti */
