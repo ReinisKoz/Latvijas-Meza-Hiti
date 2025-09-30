@@ -1,31 +1,77 @@
 <script setup>
-  import axios from 'axios';
-  import { ref } from 'vue';
+import axios from 'axios';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-  const name = ref('');
-  const email = ref('');
-  const password = ref('');
-  const password_confirmation = ref('');
+const router = useRouter();
+const name = ref('');
+const email = ref('');
+const password = ref('');
+const password_confirmation = ref('');
+const loading = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
 
-  const loginUser = async () => {
-    try {
-      const response = await axios.post('/api/register', {
-        name: name.value,
-        email: email.value,
-        password: password.value
-      });
+const register = async () => {
+  // Reset messages
+  errorMessage.value = '';
+  successMessage.value = '';
+  
+  // Validation
+  if (password.value !== password_confirmation.value) {
+    errorMessage.value = 'Passwords do not match!';
+    return;
+  }
 
-      console.log(response.data);
-    } catch (error) {
+  if (password.value.length < 6) {
+    errorMessage.value = 'Password must be at least 6 characters long!';
+    return;
+  }
 
-      console.error(error.response ? error.response.data : error.message);
+  loading.value = true;
+
+  try {
+    const response = await axios.post('/api/register', {
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      password_confirmation: password_confirmation.value
+    });
+
+    console.log('Registration successful:', response.data);
+    successMessage.value = 'Account created successfully!';
+    
+    // Redirect to gameview after 1.5 seconds
+    setTimeout(() => {
+      router.push('/gameview');
+    }, 1500);
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    
+    if (error.response) {
+      // Server responded with error status
+      if (error.response.data.errors) {
+        // Laravel validation errors
+        const errors = error.response.data.errors;
+        errorMessage.value = Object.values(errors)[0][0];
+      } else if (error.response.data.message) {
+        errorMessage.value = error.response.data.message;
+      } else {
+        errorMessage.value = 'Registration failed. Please try again.';
+      }
+    } else if (error.request) {
+      // Network error
+      errorMessage.value = 'Network error. Please check your connection.';
+    } else {
+      // Other errors
+      errorMessage.value = 'An unexpected error occurred.';
     }
-  };
-
-
-
+  } finally {
+    loading.value = false;
+  }
+};
 </script>
-
 
 <template>
   <div class="page">
@@ -53,6 +99,7 @@
             v-model="name"
             placeholder="Enter your name"
             required
+            :disabled="loading"
           />
         </div>
 
@@ -64,6 +111,7 @@
             v-model="email"
             placeholder="Enter your email"
             required
+            :disabled="loading"
           />
         </div>
 
@@ -75,6 +123,7 @@
             v-model="password"
             placeholder="Enter your password"
             required
+            :disabled="loading"
           />
         </div>
 
@@ -86,10 +135,11 @@
             v-model="password_confirmation"
             placeholder="Confirm your password"
             required
+            :disabled="loading"
           />
         </div>
 
-        <button type="submit" class="btn-login" v-on:click="loginUser"  :disabled="loading">
+        <button type="submit" class="btn-login" :disabled="loading">
           {{ loading ? 'CREATING ACCOUNT...' : 'REGISTER' }}
         </button>
 
@@ -98,12 +148,11 @@
       </form>
 
       <div class="login-footer">
-        <p>Already have an account? <router-link to="/login">Login</router-link></p>
+        <p>Already have an account? <router-link to="/">Login</router-link></p>
       </div>
     </div>
   </div>
 </template>
-
 
 
 <style scoped>
