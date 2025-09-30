@@ -1,13 +1,9 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>Laravel</title>
-        @vite(['resources/js/app.js'])
-        <script src="{{ asset('resources/js/scripts.js') }}"></script>
-    </head>
-    <body>
-        <div id="app">
-            <example-component></example-component>
-        </div>
-    </body>
+<head>
+    <title>Welcome</title>
+</head>
+<body>
+    <h1>Hello, Laravel is working!</h1>
+</body>
 </html>
