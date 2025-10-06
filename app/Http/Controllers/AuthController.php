@@ -9,11 +9,21 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 
+ 
+
+
 
 class AuthController extends Controller
 
 
 {
+    public function authuser() {
+        return response()->json([
+            'isAuthenticated' => Auth::check(),
+            'user' => Auth::user(),
+        ]);
+    }
+    
     public function register(Request $request)
     {
         Log::info("User Login request", [
@@ -66,13 +76,10 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Veiksmīga pieteikšanās',
             'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer'
         ]);
     }
 
