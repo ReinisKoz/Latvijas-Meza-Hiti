@@ -11,11 +11,8 @@ const errorMessage = ref('');
 const successMessage = ref('');
 
 const login = async () => {
-  // Reset messages
   errorMessage.value = '';
   successMessage.value = '';
-
-
   loading.value = true;
 
   try {
@@ -25,20 +22,29 @@ const login = async () => {
     });
 
     console.log('Login successful:', response.data);
-    successMessage.value = 'Account created successfully!';
-    
-    // Redirect to gameview after 1.5 seconds
+
+    // ✅ Saglabā lietotāja datus un tokenu lokāli
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    localStorage.setItem('token', response.data.token);
+
+    successMessage.value = 'Login successful! Redirecting...';
+
+    // ✅ Pārbauda lietotāja lomu un novirza
+    const userRole = response.data.user.role;
+
     setTimeout(() => {
-      router.push('/loggedview');
+      if (userRole === 'admin') {
+        router.push('/admindashboard');
+      } else {
+        router.push('/loggedview');
+      }
     }, 1500);
 
   } catch (error) {
     console.error('Login error:', error);
-    
+
     if (error.response) {
-      // Server responded with error status
       if (error.response.data.errors) {
-        // Laravel validation errors
         const errors = error.response.data.errors;
         errorMessage.value = Object.values(errors)[0][0];
       } else if (error.response.data.message) {
@@ -47,34 +53,42 @@ const login = async () => {
         errorMessage.value = 'Login failed. Please try again.';
       }
     } else if (error.request) {
-      // Network error
       errorMessage.value = 'Network error. Please check your connection.';
     } else {
-      // Other errors
       errorMessage.value = 'An unexpected error occurred.';
     }
   } finally {
     loading.value = false;
   }
-
-  onMounted(async () => {
-    const response = await axios.get('/api/authuser')
-
-    if (response.data.is.isAuthenticated) {
-      router.push('/gameview')
-    }
-  })
 };
+
+// ✅ Kad lapa ielādējas, pārbauda, vai jau ir ielogots lietotājs
+onMounted(async () => {
+  try {
+    const response = await axios.get('/api/authuser');
+
+    if (response.data.isAuthenticated) {
+      const userRole = response.data.user.role;
+      if (userRole === 'admin') {
+        router.push('/admindashboard');
+      } else {
+        router.push('/loggedview');
+      }
+    }
+  } catch (error) {
+    console.warn('Auth check failed or not logged in.');
+  }
+});
 </script>
 
 <template>
   <div class="page">
-    <!-- Mākoņi (nekustīgi) -->
+    <!-- Mākoņi -->
     <div class="cloud cloud1"></div>
     <div class="cloud cloud2"></div>
     <div class="cloud cloud3"></div>
 
-    <!-- Putni (kustīgi) -->
+    <!-- Putni -->
     <div class="bird">🐦</div>
     <div class="bird" style="top: 30%; animation-delay: 5s;">🕊️</div>
     <div class="bird" style="top: 70%; animation-delay: 10s;">🐤</div>
@@ -109,9 +123,12 @@ const login = async () => {
           />
         </div>
 
-        <button v-on:click="login" type="submit" class="btn-login">LOGIN</button>
+        <button type="submit" class="btn-login" :disabled="loading">
+          {{ loading ? 'Logging in...' : 'LOGIN' }}
+        </button>
 
         <div class="error-message">{{ errorMessage }}</div>
+        <div class="success-message">{{ successMessage }}</div>
       </form>
 
       <div class="login-footer">
@@ -141,7 +158,6 @@ const login = async () => {
   overflow: hidden;
 }
 
-/* Login box */
 .login-container {
   background-color: #228b22;
   border-radius: 20px;
@@ -242,14 +258,21 @@ const login = async () => {
   min-height: 20px;
 }
 
-/* Mākonīši */
+.success-message {
+  color: #90ee90;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 16px;
+  min-height: 20px;
+}
+
 .cloud {
   position: absolute;
   background: white;
   border-radius: 50%;
-  box-shadow: 
-    60px 0px 0 20px white, 
-    120px 10px 0 30px white, 
+  box-shadow:
+    60px 0px 0 20px white,
+    120px 10px 0 30px white,
     180px -10px 0 25px white;
   width: 100px;
   height: 100px;
@@ -257,24 +280,10 @@ const login = async () => {
   z-index: 0;
 }
 
-/* Pozīcijas */
-.cloud1 {
-  top: 15%;
-  left: 10%;
-  transform: scale(1.5); /* lielāks */
-}
-.cloud2 {
-  top: 30%;
-  right: 15%;
-  transform: scale(2); /* vēl lielāks */
-}
-.cloud3 {
-  bottom: 20%;
-  left: 20%;
-  transform: scale(1.8);
-}
+.cloud1 { top: 15%; left: 10%; transform: scale(1.5); }
+.cloud2 { top: 30%; right: 15%; transform: scale(2); }
+.cloud3 { bottom: 20%; left: 20%; transform: scale(1.8); }
 
-/* Putni */
 .bird {
   position: absolute;
   font-size: 30px;
@@ -283,11 +292,7 @@ const login = async () => {
 }
 
 @keyframes fly {
-  from {
-    transform: translateX(-100vw);
-  }
-  to {
-    transform: translateX(100vw);
-  }
+  from { transform: translateX(-100vw); }
+  to { transform: translateX(100vw); }
 }
 </style>

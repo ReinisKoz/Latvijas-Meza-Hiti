@@ -1,39 +1,47 @@
 <script setup>
 import { onMounted, reactive, watch } from 'vue'
-import { enableDragDrop, playAnimalBeat, timeline } from '/resources/js/scripts.js'
-import * as Tone from 'tone'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, updateAnimalPositions } from '/resources/js/scripts.js'
+import { Howler } from 'howler'
 
 onMounted(() => {
   enableDragDrop()
 })
 
-// Make timeline reactive inside Vue
-const state = reactive(timeline)
+// ✅ make timeline reactive
+const state = reactive({ ...timeline })
 
 function play() {
-  // apply updated options before playing
-  Tone.Transport.bpm.value = state.bpm
-  // Tone.Transport.seconds = state.length
-  Tone.Destination.volume.value = state.volume
-
+  // apply updated options
+  Howler.volume(state.volume)
   playAnimalBeat()
 }
 
-// Recalculate cols whenever bpm or length changes
+function stop() {
+  stopAnimalBeat()
+}
+
+// ✅ recalc cols whenever bpm or length changes
 watch(
   () => [state.bpm, state.length],
   ([newBpm, newLength]) => {
     state.cols = Math.floor((newBpm / 60) * newLength)
-    console.log(timeline);
+    timeline.cols = state.cols
+    timeline.bpm = newBpm
+    timeline.length = newLength
+    updateAnimalPositions()
+    console.log('Timeline updated:', timeline)
   },
-  { immediate: true } // run on mount too
-  
+  { immediate: true }
 )
 
-function stop() {
-  Tone.Transport.stop()
-  Tone.Transport.cancel()
-}
+// keep volume synced
+watch(
+  () => state.volume,
+  (newVol) => {
+    timeline.volume = newVol
+    Howler.volume(newVol)
+  }
+)
 </script>
 
 <template>
@@ -52,7 +60,7 @@ function stop() {
         </label>
         <label>
           🎵 BPM
-          <input type="number" min="30" max="1000" v-model.number="state.bpm">
+          <input type="number" min="30" max="300" v-model.number="state.bpm">
         </label>
         <label>
           ⏱️ Length (s)
@@ -71,7 +79,6 @@ function stop() {
         <img id="bear-0" src="/public/bear1.png" alt="Bear" class="draggable animal">
         <span>Bear</span>
       </div>
-      <!-- 🔮 Future animals -->
     </div>
   </div>
 </template>
@@ -174,11 +181,15 @@ function stop() {
 }
 
 .animal {
+  position: absolute;
   width: 80px;
   height: 80px;
   object-fit: contain;
   cursor: grab;
   user-select: none;
+  z-index: 5;
+  will-change: transform;
+  margin: 0px;
 }
 
 .animal-card span {

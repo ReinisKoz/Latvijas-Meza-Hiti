@@ -4,6 +4,7 @@ import RegistrationView from "../views/registrationView.vue";
 import gameView from "../views/gameView.vue";
 import LoggedView from "../views/LoggedView.vue";
 import Wheel from "../views/wheel.vue";
+import AdmindashboardView from "../views/AdmindashboardView.vue";
 
 const routes = [
     {
@@ -30,6 +31,11 @@ const routes = [
         path: "/wheel",
         name: "wheel",
         component: Wheel,
+    },
+    {
+        path: "/admindashboard",
+        name: "wheel",
+        component: AdmindashboardView,
     },
 ];
 
