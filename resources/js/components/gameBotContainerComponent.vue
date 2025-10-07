@@ -1,41 +1,47 @@
 <script setup>
 import { onMounted, reactive, watch } from 'vue'
-import { enableDragDrop, playAnimalBeat, timeline, updateAnimalPositions } from '/resources/js/scripts.js'
-import * as Tone from 'tone'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, updateAnimalPositions } from '/resources/js/scripts.js'
+import { Howler } from 'howler'
 
 onMounted(() => {
   enableDragDrop()
 })
 
-// Make timeline reactive inside Vue
-// const state = reactive(timeline)
+// ✅ make timeline reactive
+const state = reactive({ ...timeline })
 
 function play() {
-  // apply updated options before playing
-  Tone.Transport.bpm.value = state.bpm
-  // Tone.Transport.seconds = state.length
-  Tone.Destination.volume.value = state.volume
-
+  // apply updated options
+  Howler.volume(state.volume)
   playAnimalBeat()
 }
 
-// Recalculate cols whenever bpm or length changes
-// watch(
-//   () => [state.bpm, state.length],
-//   ([newBpm, newLength]) => {
-//     state.cols = Math.floor((newBpm / 60) * newLength)
-//     console.log(timeline);
-//     updateAnimalPositions();
-
-//   },
-//   { immediate: true } // run on mount too
-  
-// )
-
 function stop() {
-  Tone.Transport.stop()
-  Tone.Transport.cancel()
+  stopAnimalBeat()
 }
+
+// ✅ recalc cols whenever bpm or length changes
+watch(
+  () => [state.bpm, state.length],
+  ([newBpm, newLength]) => {
+    state.cols = Math.floor((newBpm / 60) * newLength)
+    timeline.cols = state.cols
+    timeline.bpm = newBpm
+    timeline.length = newLength
+    updateAnimalPositions()
+    console.log('Timeline updated:', timeline)
+  },
+  { immediate: true }
+)
+
+// keep volume synced
+watch(
+  () => state.volume,
+  (newVol) => {
+    timeline.volume = newVol
+    Howler.volume(newVol)
+  }
+)
 </script>
 
 <template>
@@ -50,18 +56,15 @@ function stop() {
       <div class="options">
         <label>
           🔊 Volume
-          <!-- <input type="range" min="0" max="1" step="0.05" v-model.number="state.volume"> -->
-          <input type="range" min="0" max="1" step="0.05">
+          <input type="range" min="0" max="1" step="0.05" v-model.number="state.volume">
         </label>
         <label>
           🎵 BPM
-          <!-- <input type="number" min="30" max="1000" v-model.number="state.bpm"> -->
-          <input type="number" min="30" max="1000">
+          <input type="number" min="30" max="300" v-model.number="state.bpm">
         </label>
         <label>
           ⏱️ Length (s)
-          <!-- <input type="number" min="1" max="32767" v-model.number="state.length"> -->
-          <input type="number" min="1" max="32767">
+          <input type="number" min="1" max="32767" v-model.number="state.length">
         </label>
       </div>
     </div>
@@ -69,14 +72,13 @@ function stop() {
     <!-- ANIMAL DECK -->
     <div class="animal-deck" id="animal-deck">
       <div class="animal-card" id="bird-card">
-        <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal" style="position: absolute;">
+        <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal">
         <span>Bird</span>
       </div>
       <div class="animal-card" id="bear-card">
         <img id="bear-0" src="/public/bear1.png" alt="Bear" class="draggable animal">
         <span>Bear</span>
       </div>
-      <!-- 🔮 Future animals -->
     </div>
   </div>
 </template>
@@ -179,6 +181,7 @@ function stop() {
 }
 
 .animal {
+  position: absolute;
   width: 80px;
   height: 80px;
   object-fit: contain;

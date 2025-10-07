@@ -4,17 +4,6 @@ import { enableDragDrop } from '/resources/js/scripts.js'
 import { timeline } from '/resources/js/scripts.js'
 import { defineProps } from "vue";
 
-// export const timelineSize = {
-//   'cols': 10,
-//   'rows': 5
-// };
-
-// const props = defineProps({
-//   rows: { type: Number, default: 1 },          // rindu skaits
-//   cols: { type: Number, default: timeline['cols'] },          // kolonnu skaits (koku skaits)
-//   zonesPerTree: { type: Number, default: timeline['rows'] },  // rindu skaits (vietas katrā kokā)
-// });
-
 const props = reactive(timeline);
 
 onMounted(() => {
@@ -24,8 +13,8 @@ onMounted(() => {
 
 <template>
   <div class="top-container">
-    <!-- <div class="tree-row" v-for="rowIndex in rows" :key="rowIndex"> -->
-    <div class="tree-row">
+    <div class="tree-row" v-for="rowIndex in props.rows" :key="rowIndex">
+    <!-- <div class="tree-row"> -->
       <div class="dropzone-container" v-for="colIndex in props.cols" :key="colIndex">
         <div class="overlay">
           <div

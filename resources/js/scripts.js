@@ -535,58 +535,57 @@ export const timeline = {
   'volume': 1.0
 };
 
+let intervalId = null;
+
+// Preload animal sounds into Howl objects
+const animalSounds = {
+  bird: new Howl({ src: ['/sounds/bird1.mp3'], volume: timeline.volume }),
+  bear: new Howl({ src: ['/sounds/bear1.mp3'], volume: timeline.volume }),
+  // add more animals as needed
+};
+
+export function stopAnimalBeat() {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+}
+
 export function playAnimalBeat() {
-    if (!animalPositions || Object.keys(animalPositions).length === 0) return;
+  stopAnimalBeat(); // prevent multiple intervals
 
-    const entries = Object.entries(animalPositions);
+  console.log('play beat');
 
-    // Resume AudioContext on user gesture
-    Tone.start().then(() => {
-        console.log("AudioContext resumed");
+  if (!animalPositions || Object.keys(animalPositions).length === 0) return;
 
-        // Set BPM
-        Tone.Transport.bpm.value = 60;
+  const animals = Object.keys(animalSounds);
 
-        // Map animals to players
-        // const players = entries.map(([dropzone, animal]) => {
-        //     return new Tone.Player(`/sounds/${splitAnimalId(animal).letters + +1}.mp3`).toDestination();
-        // });
-        const animals = ['bird', 'bear'];
-        const players = [];
-        animals.forEach((animal) => {
-          players.push(new Tone.Player(`/sounds/${animal + +1}.mp3`).toDestination());
-        });
+  // Build beat pattern [animal][cols]
+  const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0));
 
-        // const players = 
+  Object.keys(animalPositions).forEach(pos => {
+    const animal = animalPositions[pos];
+    const { row, col } = splitDropZonelId(pos);
+    const type = splitAnimalId(animal).letters;
+    const index = animals.indexOf(type);
+    if (index >= 0) beatPattern[index][col] = 1;
+  });
 
-        // Create a simple 4-step beat sequence
-        // You can expand this as you like
-        // const beatPattern = [
-        //     [1, 0, 1, 0], // player 0 (kick)
-        //     [0, 1, 0, 1], // player 1 (snare)
-        //     [0, 1, 1, 1]  // player 2 (hi-hat)
-        // ];
+  console.log('Beat Pattern:', beatPattern);
 
-        const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0));
-        console.log(beatPattern);
-        Object.keys(animalPositions).forEach(pos => {
-          const animal = animalPositions[pos];
-          console.log(splitDropZonelId(pos));
-          const { letters, row, col } = splitDropZonelId(pos);
-          beatPattern[animals.indexOf(splitAnimalId(animal).letters)][col] = 1;
-        });
-        console.log(beatPattern);
+  let step = 0;
+  const msPerBeat = (60 / timeline.bpm) * 1000; // ms per beat
+  const totalSteps = timeline.cols;
 
-        players.forEach((player, i) => {
-            if (!beatPattern[i]) return; // skip extra players
-
-            const seq = new Tone.Sequence((time, step) => {
-                if (beatPattern[i][step]) player.start(time);
-            }, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "10n"); // 4 steps = 4 quarter notes
-
-            seq.start(0);
-        });
-
-        Tone.Transport.start();
+  intervalId = setInterval(() => {
+    // loop through animals
+    beatPattern.forEach((row, i) => {
+      if (row[step] === 1) {
+        animalSounds[animals[i]].volume(timeline.volume);
+        animalSounds[animals[i]].play();
+      }
     });
+
+    step = (step + 1) % totalSteps; // loop back
+  }, msPerBeat);
 }
