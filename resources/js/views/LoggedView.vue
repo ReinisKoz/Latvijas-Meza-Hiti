@@ -1,3 +1,67 @@
+<script setup>
+import { ref, computed, onMounted } from "vue";
+import axios from 'axios';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const profileName = ref("Jānis Bērziņš");
+const userInitials = computed(() =>
+  profileName.value
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+);
+
+const showUploadModal = ref(false);
+const showMusicList = ref(false);
+
+const newMusic = ref({
+  title: "",
+  file: null,
+});
+onMounted(async () => {
+  try {
+    const response = await axios.get('/api/authuser')
+    console.log('DATA 123:', response.data)
+  } catch (error) {
+    console.error('auth user error:', error)
+  }
+})
+
+const logout = async () => {
+
+  try {
+    const response = await axios.post('/api/logout');
+
+    console.log('Logout successful:', response.data);
+    
+   
+    router.push('/');
+
+  } catch (error) {
+    console.error('logout error:', error);
+    
+  } 
+};
+
+const myMusic = ref([
+  { id: 1, title: "Rīta saule", date: "2023-10-15" },
+  { id: 2, title: "Vakara vējš", date: "2023-09-22" },
+  { id: 3, title: "Pilsētas ritms", date: "2023-08-05" },
+]);
+
+
+
+const viewMyMusic = () => {
+  showMusicList.value = true;
+};
+
+const playMusic = (music) => {
+  alert(`Atskaņo: ${music.title}`);
+};
+</script>  
+
 <template>
   <div id="app">
     <div class="header">
@@ -5,7 +69,7 @@
         <div class="profile-pic">{{ userInitials }}</div>
         <div class="profile-name">{{ profileName }}</div>
       </div>
-      <router-link to="/" class="logout-btn">👋 Izlogoties</router-link>
+      <button v-on:click="logout" class="logout-btn">👋 Izlogoties</button>
     </div>
 
     <div class="main-content">
@@ -69,45 +133,7 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
-
-const profileName = ref("Jānis Bērziņš");
-const userInitials = computed(() =>
-  profileName.value
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-);
-
-const showUploadModal = ref(false);
-const showMusicList = ref(false);
-
-const newMusic = ref({
-  title: "",
-  file: null,
-});
-
-const myMusic = ref([
-  { id: 1, title: "Rīta saule", date: "2023-10-15" },
-  { id: 2, title: "Vakara vējš", date: "2023-09-22" },
-  { id: 3, title: "Pilsētas ritms", date: "2023-08-05" },
-]);
-
-const logout = () => {
-  if (confirm("Vai tiešām vēlaties izlogoties?")) {
-    alert("Izlogojies veiksmīgi!");
-  }
-};
-
-const viewMyMusic = () => {
-  showMusicList.value = true;
-};
-
-const playMusic = (music) => {
-  alert(`Atskaņo: ${music.title}`);
-};
-</script>   
+ 
 
 <style scoped>
 /* 🌤️ Debesu fons ar mākoņiem */
