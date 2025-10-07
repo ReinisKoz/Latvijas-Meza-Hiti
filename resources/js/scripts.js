@@ -1,6 +1,6 @@
 import interact from 'interactjs'
 import {Howl, Howler} from 'howler';
-import * as Tone from 'tone';
+import axios from "axios";
 
 let snapTargets = []; // make sure this is accessible globally
 let dropzones = document.querySelectorAll('.dropzone');
@@ -537,12 +537,28 @@ export const timeline = {
 
 let intervalId = null;
 
-// Preload animal sounds into Howl objects
-const animalSounds = {
-  bird: new Howl({ src: ['/sounds/bird1.mp3'], volume: timeline.volume }),
-  bear: new Howl({ src: ['/sounds/bear1.mp3'], volume: timeline.volume }),
-  // add more animals as needed
-};
+// // Preload animal sounds into Howl objects
+// const animalSounds = {
+//   bird: new Howl({ src: ['/sounds/bird1.mp3'], volume: timeline.volume }),
+//   bear: new Howl({ src: ['/sounds/bear1.mp3'], volume: timeline.volume }),
+
+//   // add more animals as needed
+// };
+
+
+const res = await axios.get('/api/animal-sounds');
+const soundUrls = res.data;
+
+const animalSounds = {};
+soundUrls.forEach(url => {
+  const name = url.split('/').pop().replace('.mp3', ''); // "bird1"
+  animalSounds[name] = new Howl({
+    src: [url],
+    volume: timeline.volume
+  });
+});
+
+console.log(animalSounds);
 
 export function stopAnimalBeat() {
   if (intervalId) {
