@@ -9,4 +9,4 @@ Route::get('/', function () {
 
 Route::get('/{any}', function () {
     return view('welcome');
-})->where('any', '.*');
+})->where('any', '^(?!api).*$'); // Excludes routes starting with "api"

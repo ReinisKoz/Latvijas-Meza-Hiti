@@ -17,12 +17,33 @@ class AuthController extends Controller
 
 
 {
-    public function authuser() {
+    public function authuser(Request $request)
+{
+    try {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json([
+                'isAuthenticated' => false,
+                'user' => null,
+            ], 401);
+        }
+
         return response()->json([
-            'isAuthenticated' => Auth::check(),
-            'user' => Auth::user(),
+            'isAuthenticated' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
         ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'isAuthenticated' => false,
+            'error' => 'Authentication failed'
+        ], 500);
     }
+}
     
     public function register(Request $request)
     {
@@ -91,8 +112,5 @@ class AuthController extends Controller
         ]);
     }
 
-    public function user(Request $request)
-    {
-        return response()->json($request->user());
-    }
+
 }

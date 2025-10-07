@@ -22,7 +22,7 @@ const newMusic = ref({
 });
 onMounted(async () => {
   try {
-    const response = await axios.post('/api/authuser')
+    const response = await axios.get('/api/authuser')
     console.log('DATA 123:', response.data)
   } catch (error) {
     console.error('auth user error:', error)
