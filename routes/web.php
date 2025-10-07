@@ -11,5 +11,9 @@ Route::get('/register', function () {
     return view('welcome');
 });
 
+Route::get('/gameview', function () {
+    return view('welcome');
+});
+
 
 // POST krch router get /registerUse /register 

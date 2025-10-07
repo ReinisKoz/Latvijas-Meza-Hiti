@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, reactive, watch } from 'vue'
-import { enableDragDrop, playAnimalBeat, timeline } from '/resources/js/scripts.js'
+import { enableDragDrop, playAnimalBeat, timeline, updateAnimalPositions } from '/resources/js/scripts.js'
 import * as Tone from 'tone'
 
 onMounted(() => {
@@ -8,7 +8,7 @@ onMounted(() => {
 })
 
 // Make timeline reactive inside Vue
-const state = reactive(timeline)
+// const state = reactive(timeline)
 
 function play() {
   // apply updated options before playing
@@ -20,15 +20,17 @@ function play() {
 }
 
 // Recalculate cols whenever bpm or length changes
-watch(
-  () => [state.bpm, state.length],
-  ([newBpm, newLength]) => {
-    state.cols = Math.floor((newBpm / 60) * newLength)
-    console.log(timeline);
-  },
-  { immediate: true } // run on mount too
+// watch(
+//   () => [state.bpm, state.length],
+//   ([newBpm, newLength]) => {
+//     state.cols = Math.floor((newBpm / 60) * newLength)
+//     console.log(timeline);
+//     updateAnimalPositions();
+
+//   },
+//   { immediate: true } // run on mount too
   
-)
+// )
 
 function stop() {
   Tone.Transport.stop()
@@ -48,15 +50,18 @@ function stop() {
       <div class="options">
         <label>
           🔊 Volume
-          <input type="range" min="0" max="1" step="0.05" v-model.number="state.volume">
+          <!-- <input type="range" min="0" max="1" step="0.05" v-model.number="state.volume"> -->
+          <input type="range" min="0" max="1" step="0.05">
         </label>
         <label>
           🎵 BPM
-          <input type="number" min="30" max="1000" v-model.number="state.bpm">
+          <!-- <input type="number" min="30" max="1000" v-model.number="state.bpm"> -->
+          <input type="number" min="30" max="1000">
         </label>
         <label>
           ⏱️ Length (s)
-          <input type="number" min="1" max="32767" v-model.number="state.length">
+          <!-- <input type="number" min="1" max="32767" v-model.number="state.length"> -->
+          <input type="number" min="1" max="32767">
         </label>
       </div>
     </div>
@@ -64,7 +69,7 @@ function stop() {
     <!-- ANIMAL DECK -->
     <div class="animal-deck" id="animal-deck">
       <div class="animal-card" id="bird-card">
-        <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal">
+        <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal" style="position: absolute;">
         <span>Bird</span>
       </div>
       <div class="animal-card" id="bear-card">
@@ -179,6 +184,9 @@ function stop() {
   object-fit: contain;
   cursor: grab;
   user-select: none;
+  z-index: 5;
+  will-change: transform;
+  margin: 0px;
 }
 
 .animal-card span {
