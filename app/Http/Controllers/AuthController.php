@@ -90,18 +90,18 @@ class AuthController extends Controller
             ], 422);
         }
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        if (Auth::attempt($request->only('email', 'password'))) {
+            $user = User::where('email', $request->email)->firstOrFail();
+            
             return response()->json([
-                'message' => 'Nepareizs e-pasts vai parole'
-            ], 401);
-        }
-
-        $user = User::where('email', $request->email)->firstOrFail();
-
-        return response()->json([
             'message' => 'Veiksmīga pieteikšanās',
             'user' => $user,
         ]);
+        }
+
+        return response()->json([
+                'message' => 'Nepareizs e-pasts vai parole'
+            ], 401);
     }
 
     public function logout(Request $request)
