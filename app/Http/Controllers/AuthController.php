@@ -7,23 +7,40 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+
+ 
+
 
 
 class AuthController extends Controller
+
+
 {
+    public function authuser() {
+        return response()->json([
+            'isAuthenticated' => Auth::check(),
+            'user' => Auth::user(),
+        ]);
+    }
+    
     public function register(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+        Log::info("User Login request", [
+        'data' => $request->all()
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        // $validator = Validator::make($request->all(), [
+        //     'name' => 'required|string|max:255',
+        //     'email' => 'required|string|email|max:255|unique:users',
+        //     'password' => 'required|string|min:8|confirmed',
+        // ]);
+
+        // if ($validator->fails()) {
+        //     return response()->json([
+        //         'errors' => $validator->errors()
+        //     ], 422);
+        // }
 
         $user = User::create([
             'name' => $request->name,
@@ -31,13 +48,11 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Lietotājs veikmiģi reģistrēts',
             'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer'
         ], 201);
     }
 
@@ -61,13 +76,10 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Veiksmīga pieteikšanās',
             'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer'
         ]);
     }
 

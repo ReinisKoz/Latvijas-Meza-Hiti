@@ -15,5 +15,16 @@ Route::get('/gameview', function () {
     return view('welcome');
 });
 
+Route::get('/loggedview', function () {
+    return view('welcome');
+});
+
+Route::get('/wheel', function () {
+    return view('welcome');
+});
+
+Route::get('/admindashboard', function () {
+    return view('welcome');
+});
 
 // POST krch router get /registerUse /register 
