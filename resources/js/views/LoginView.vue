@@ -1,3 +1,72 @@
+<script setup>
+import axios from 'axios';
+import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+const email = ref('');
+const password = ref('');
+const loading = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
+
+const login = async () => {
+  // Reset messages
+  errorMessage.value = '';
+  successMessage.value = '';
+
+
+  loading.value = true;
+
+  try {
+    const response = await axios.post('/api/login', {
+      email: email.value,
+      password: password.value
+    });
+
+    console.log('Login successful:', response.data);
+    successMessage.value = 'Account created successfully!';
+    
+    // Redirect to gameview after 1.5 seconds
+    setTimeout(() => {
+      router.push('/loggedview');
+    }, 1500);
+
+  } catch (error) {
+    console.error('Login error:', error);
+    
+    if (error.response) {
+      // Server responded with error status
+      if (error.response.data.errors) {
+        // Laravel validation errors
+        const errors = error.response.data.errors;
+        errorMessage.value = Object.values(errors)[0][0];
+      } else if (error.response.data.message) {
+        errorMessage.value = error.response.data.message;
+      } else {
+        errorMessage.value = 'Login failed. Please try again.';
+      }
+    } else if (error.request) {
+      // Network error
+      errorMessage.value = 'Network error. Please check your connection.';
+    } else {
+      // Other errors
+      errorMessage.value = 'An unexpected error occurred.';
+    }
+  } finally {
+    loading.value = false;
+  }
+
+  onMounted(async () => {
+    const response = await axios.get('/api/authuser')
+
+    if (response.data.is.isAuthenticated) {
+      router.push('/gameview')
+    }
+  })
+};
+</script>
+
 <template>
   <div class="page">
     <!-- Mākoņi (nekustīgi) -->
@@ -19,12 +88,12 @@
 
       <form @submit.prevent="login">
         <div class="form-group">
-          <label for="username">Username</label>
+          <label for="username">E-mail</label>
           <input
             type="text"
             id="username"
-            v-model="username"
-            placeholder="Enter your username"
+            v-model="email"
+            placeholder="Enter your email"
             required
           />
         </div>
@@ -40,7 +109,7 @@
           />
         </div>
 
-        <button type="submit" class="btn-login">LOGIN</button>
+        <button v-on:click="login" type="submit" class="btn-login">LOGIN</button>
 
         <div class="error-message">{{ errorMessage }}</div>
       </form>
@@ -52,37 +121,6 @@
     </div>
   </div>
 </template>
-
-<script>
-export default {
-  name: "LoginPage",
-  data() {
-    return {
-      username: "",
-      password: "",
-      errorMessage: "",
-    };
-  },
-  methods: {
-    login() {
-      if (!this.username || !this.password) {
-        this.errorMessage = "Please fill in all fields!";
-        return;
-      }
-
-      this.errorMessage = "Logging in...";
-
-      setTimeout(() => {
-        if (this.username === "admin" && this.password === "password") {
-          this.errorMessage = "Login successful! Redirecting...";
-        } else {
-          this.errorMessage = "Invalid username or password!";
-        }
-      }, 1000);
-    },
-  },
-};
-</script>
 
 <style scoped>
 * {
