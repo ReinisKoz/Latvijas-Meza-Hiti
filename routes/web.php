@@ -7,17 +7,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/register', function () {
+Route::get('/{any}', function () {
     return view('welcome');
-});
-
-Route::get('/gameview', function () {
-    return view('welcome');
-});
-
-Route::get('/loggedview', function () {
-    return view('welcome');
-});
-
-
-// POST krch router get /registerUse /register 
+})->where('any', '.*');

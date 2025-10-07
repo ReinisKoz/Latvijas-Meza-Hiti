@@ -85,8 +85,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-
+        Auth::logout();
         return response()->json([
             'message' => 'Veiksmīgi atslēgts'
         ]);
