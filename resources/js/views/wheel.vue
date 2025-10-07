@@ -145,7 +145,9 @@ function redeemGiftCode() {
                 backgroundColor: segmentColors[index]
               }"
             >
-              <span>{{ segment }}</span>
+              <div class="segment-text">
+                {{ segment }}
+              </div>
             </div>
           </div>
           <div class="pointer-base"></div>
@@ -306,14 +308,12 @@ function redeemGiftCode() {
   position: absolute;
   width: 50%;
   height: 50%;
-  top: 50%;
+  top: 0;
   left: 50%;
-  transform-origin: 0% 0%;
+  transform-origin: 0% 100%;
   display: flex;
   align-items: flex-start;
-  justify-content: flex-start;
-  padding-top: 20px;
-  padding-left: 40px;
+  justify-content: center;
   font-weight: bold;
   color: white;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
@@ -322,11 +322,17 @@ function redeemGiftCode() {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.segment span {
-  transform: rotate(45deg);
-  display: inline-block;
+.segment-text {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  width: 100%;
   text-align: center;
-  width: 80px;
+  transform-origin: center;
+  /* Rotate text to be readable in each segment */
+  transform: rotate(calc(360deg / 20));
+  padding: 0 10px;
+  box-sizing: border-box;
 }
 
 .pointer {
@@ -644,12 +650,10 @@ function redeemGiftCode() {
   
   .segment {
     font-size: 0.9rem;
-    padding-top: 15px;
-    padding-left: 30px;
   }
   
-  .segment span {
-    width: 60px;
+  .segment-text {
+    top: 15px;
   }
 }
 
@@ -665,12 +669,10 @@ function redeemGiftCode() {
   
   .segment {
     font-size: 0.8rem;
-    padding-top: 10px;
-    padding-left: 25px;
   }
   
-  .segment span {
-    width: 50px;
+  .segment-text {
+    top: 10px;
   }
   
   .button-group {
