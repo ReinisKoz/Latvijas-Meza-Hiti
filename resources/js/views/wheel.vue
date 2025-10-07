@@ -15,10 +15,10 @@ const giftCode = ref("");
 const message = ref("");
 let angle = 0;
 
-// Colors for the wheel segments - updated to match your design
+// Bright, playful colors matching the registration page style
 const segmentColors = [
   "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
-  "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"
+  "#FFA500", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"
 ];
 
 // Compute total spins and total value
@@ -53,8 +53,6 @@ function spinWheel() {
     const normalizedAngle = angle % 360;
     
     // Calculate which segment is under the pointer (at top, 0 degrees)
-    // The wheel rotates clockwise, so we need to find the segment at (360 - normalizedAngle)
-    // to account for the clockwise rotation vs counter-clockwise segment placement
     const pointerAngle = (360 - normalizedAngle) % 360;
     
     // Find the segment index based on pointer position
@@ -127,6 +125,14 @@ function redeemGiftCode() {
 
 <template>
   <div class="wheel-of-fortune">
+    <!-- Clouds and birds from registration page -->
+    <div class="cloud cloud1"></div>
+    <div class="cloud cloud2"></div>
+    <div class="cloud cloud3"></div>
+    <div class="bird">🐦</div>
+    <div class="bird" style="top: 30%; animation-delay: 5s;">🕊️</div>
+    <div class="bird" style="top: 70%; animation-delay: 10s;">🐤</div>
+
     <div class="game-top-container">
       <div class="header">
         <h1>WHEEL OF FORTUNE</h1>
@@ -145,7 +151,9 @@ function redeemGiftCode() {
                 backgroundColor: segmentColors[index]
               }"
             >
-              <span>{{ segment }}</span>
+              <div class="segment-text">
+                {{ segment }}
+              </div>
             </div>
           </div>
           <div class="pointer-base"></div>
@@ -236,48 +244,61 @@ function redeemGiftCode() {
 </template>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Comic Sans MS", cursive, sans-serif;
+}
+
 .wheel-of-fortune {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100vh;
   width: 100%;
-  background: #1a1a2e;
+  background: linear-gradient(135deg, #87ceeb, #b3e0ff);
   padding: 20px;
   position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .game-top-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  z-index: 1;
+  flex-shrink: 0;
 }
 
 .game-bot-container {
   display: flex;
   justify-content: center;
+  z-index: 1;
+  flex-shrink: 0;
 }
 
 .header {
   text-align: center;
   color: white;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  margin-bottom: 30px;
+  text-shadow: 2px 2px 0 #000;
+  margin-bottom: 20px;
 }
 
 .header h1 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 10px;
-  background: linear-gradient(to right, #e43f5a, #f37121);
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffd700;
+  text-shadow: 2px 2px 0 #000;
   letter-spacing: 2px;
 }
 
 .header p {
   font-size: 1.2rem;
   opacity: 0.9;
-  color: #8d99ae;
+  color: #ffffff;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .wheel-container {
@@ -287,8 +308,9 @@ function redeemGiftCode() {
 
 .wheel-wrapper {
   position: relative;
-  width: 400px;
-  height: 400px;
+  width: 350px;
+  height: 350px;
+  margin-bottom: 10px;
 }
 
 .wheel {
@@ -297,8 +319,8 @@ function redeemGiftCode() {
   border-radius: 50%;
   position: relative;
   transition: transform 4s cubic-bezier(0.2, 0.8, 0.3, 1);
-  box-shadow: 0 0 0 15px #16213e, 0 0 30px rgba(0, 0, 0, 0.5);
-  background: #16213e;
+  box-shadow: 0 0 0 15px #228b22, 0 0 30px rgba(0, 0, 0, 0.5);
+  background: #228b22;
   overflow: hidden;
 }
 
@@ -306,49 +328,54 @@ function redeemGiftCode() {
   position: absolute;
   width: 50%;
   height: 50%;
-  top: 50%;
+  top: 0;
   left: 50%;
-  transform-origin: 0% 0%;
+  transform-origin: 0% 100%;
   display: flex;
   align-items: flex-start;
-  justify-content: flex-start;
-  padding-top: 20px;
-  padding-left: 40px;
+  justify-content: center;
   font-weight: bold;
-  color: white;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  color: #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
   font-size: 1.1rem;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid #000;
 }
 
-.segment span {
-  transform: rotate(45deg);
-  display: inline-block;
+.segment-text {
+  position: absolute;
+  top: 35px;
+  left: 0;
+  width: 100%;
   text-align: center;
-  width: 80px;
+  transform-origin: center;
+  transform: rotate(18deg);
+  padding: 0 15px;
+  box-sizing: border-box;
+  font-weight: bold;
+  font-size: 1rem;
 }
 
 .pointer {
   position: absolute;
-  top: -25px;
+  top: -20px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 3rem;
-  color: #e43f5a;
-  text-shadow: 0 0 10px rgba(228, 63, 90, 0.7);
+  font-size: 2.5rem;
+  color: #ff0000;
+  text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
   z-index: 10;
   filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.5));
 }
 
 .pointer-base {
   position: absolute;
-  top: -15px;
+  top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  width: 30px;
-  height: 40px;
-  background: #e43f5a;
+  width: 25px;
+  height: 35px;
+  background: #ff0000;
   border-radius: 50% 50% 0 0;
   z-index: 5;
 }
@@ -358,58 +385,64 @@ function redeemGiftCode() {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  background: #16213e;
+  width: 70px;
+  height: 70px;
+  background: #228b22;
   border-radius: 50%;
   z-index: 5;
-  box-shadow: 0 0 0 10px #0f1525, inset 0 0 15px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 10px #1a6b1a, inset 0 0 15px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #ffd700;
   font-weight: bold;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  text-shadow: 1px 1px 0 #000;
+  border: 2px solid #000;
 }
 
 .controls {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 25px;
-  width: 300px;
+  gap: 20px;
+  width: 100%;
+  max-width: 350px;
 }
 
 .spin-btn {
-  padding: 18px 40px;
+  padding: 18px 30px;
   font-size: 1.3rem;
   font-weight: bold;
-  background: linear-gradient(to bottom, #e43f5a, #c1121f);
+  background: linear-gradient(to bottom, #ff8c00, #ff6b00);
   color: white;
   border: none;
-  border-radius: 50px;
+  border-radius: 15px;
   cursor: pointer;
-  box-shadow: 0 8px 0 #8d1121, 0 15px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 0 #cc5500, 0 12px 15px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 1px;
   width: 100%;
+  text-shadow: 1px 1px 0 #000;
+  border: 2px solid #000;
 }
 
 .spin-btn:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #ffa500, #ff7b00);
   transform: translateY(2px);
-  box-shadow: 0 6px 0 #8d1121, 0 13px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 0 #cc5500, 0 10px 12px rgba(0, 0, 0, 0.3);
 }
 
 .spin-btn:active:not(:disabled) {
-  transform: translateY(6px);
-  box-shadow: 0 2px 0 #8d1121, 0 5px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #cc5500, 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .spin-btn:disabled {
   background: linear-gradient(to bottom, #666, #444);
   color: #999;
-  box-shadow: 0 8px 0 #333, 0 15px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 0 #333, 0 12px 15px rgba(0, 0, 0, 0.2);
   cursor: not-allowed;
 }
 
@@ -420,139 +453,145 @@ function redeemGiftCode() {
 }
 
 .action-btn {
-  padding: 12px 20px;
-  font-size: 1rem;
-  background: rgba(30, 30, 60, 0.8);
+  padding: 12px 15px;
+  font-size: 0.9rem;
+  background: #228b22;
   color: white;
-  border: 1px solid #2d3047;
+  border: 2px solid #000;
   border-radius: 10px;
   cursor: pointer;
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.3s ease;
-  backdrop-filter: blur(5px);
+  text-shadow: 1px 1px 0 #000;
+  font-weight: bold;
 }
 
 .action-btn:hover {
-  background: rgba(40, 40, 80, 0.9);
+  background: #2ba32b;
   transform: translateY(-2px);
-  border-color: #e43f5a;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .result-container {
-  background: rgba(22, 33, 62, 0.8);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 25px;
+  background: #228b22;
+  border-radius: 15px;
+  padding: 20px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  border: 1px solid #2d3047;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 2px solid #000;
 }
 
 .result-label {
   font-size: 1.2rem;
-  color: #8d99ae;
-  margin-bottom: 15px;
+  color: #ffd700;
+  margin-bottom: 12px;
   font-weight: 600;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .result {
   font-size: 2rem;
   font-weight: bold;
-  color: #e43f5a;
-  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  color: #ffd700;
+  text-shadow: 2px 2px 0 #000;
   min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 12px;
   background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #000;
 }
 
 .gift-code-section {
-  background: rgba(22, 33, 62, 0.8);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 20px;
+  background: #228b22;
+  border-radius: 15px;
+  padding: 18px;
   width: 100%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  border: 1px solid #2d3047;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 2px solid #000;
 }
 
 .gift-code-section h3 {
-  color: white;
+  color: #ffd700;
   text-align: center;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
   font-size: 1.2rem;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .input-group {
   display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .gift-input {
   flex: 1;
-  padding: 12px 15px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 1rem;
-  color: white;
-  border: 1px solid #2d3047;
+  padding: 10px 12px;
+  border: 2px solid #000;
+  border-radius: 8px;
+  background: #f8f8f8;
+  font-size: 0.9rem;
+  color: #000;
 }
 
 .gift-input::placeholder {
-  color: #8d99ae;
+  color: #666;
 }
 
 .gift-input:focus {
   outline: none;
-  border-color: #e43f5a;
-  box-shadow: 0 0 0 2px rgba(228, 63, 90, 0.3);
+  border-color: #ffd700;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.5);
 }
 
 .redeem-btn {
-  padding: 12px 20px;
-  background: linear-gradient(to bottom, #4ECDC4, #2a9d8f);
+  padding: 10px 15px;
+  background: linear-gradient(to bottom, #4ECDC4, #38b2ac);
   color: white;
-  border: none;
-  border-radius: 10px;
+  border: 2px solid #000;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
   display: flex;
   align-items: center;
   gap: 5px;
   transition: all 0.3s ease;
+  text-shadow: 1px 1px 0 #000;
+  font-size: 0.9rem;
 }
 
 .redeem-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .message {
   text-align: center;
   color: #4ECDC4;
   font-weight: bold;
-  min-height: 20px;
-  margin-bottom: 10px;
+  min-height: 18px;
+  margin-bottom: 8px;
+  text-shadow: 1px 1px 0 #000;
+  font-size: 0.9rem;
 }
 
 .message.error {
-  color: #e43f5a;
+  color: #ff6b6b;
 }
 
 .demo-codes {
   text-align: center;
-  color: #8d99ae;
-  font-size: 0.9rem;
+  color: #ffd700;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .demo-codes p {
@@ -560,36 +599,40 @@ function redeemGiftCode() {
 }
 
 .history {
-  background: rgba(22, 33, 62, 0.8);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 25px;
+  background: #228b22;
+  border-radius: 15px;
+  padding: 20px;
   width: 100%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  border: 1px solid #2d3047;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 2px solid #000;
+  margin-bottom: 10px;
 }
 
 .history h3 {
-  color: white;
+  color: #ffd700;
   text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.3rem;
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .history-list {
-  max-height: 200px;
+  max-height: 150px;
   overflow-y: auto;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 8px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #000;
 }
 
 .history-item {
   color: white;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   display: flex;
   justify-content: space-between;
+  text-shadow: 1px 1px 0 #000;
+  font-size: 0.9rem;
 }
 
 .history-item:last-child {
@@ -597,12 +640,12 @@ function redeemGiftCode() {
 }
 
 .history-item.bankrupt {
-  color: #e43f5a;
+  color: #ff6b6b;
   font-weight: bold;
 }
 
 .history-item.lose-turn {
-  color: #f37121;
+  color: #ffa500;
   font-weight: bold;
 }
 
@@ -612,18 +655,21 @@ function redeemGiftCode() {
 }
 
 .no-history {
-  color: #8d99ae;
+  color: #ffd700;
   text-align: center;
-  padding: 15px;
+  padding: 12px;
   font-style: italic;
+  text-shadow: 1px 1px 0 #000;
+  font-size: 0.9rem;
 }
 
 .stats {
   display: flex;
   justify-content: space-between;
-  margin-top: 15px;
-  color: #8d99ae;
-  font-size: 0.9rem;
+  margin-top: 12px;
+  color: #ffd700;
+  font-size: 0.8rem;
+  text-shadow: 1px 1px 0 #000;
 }
 
 @keyframes pulse {
@@ -636,41 +682,94 @@ function redeemGiftCode() {
   animation: pulse 0.5s ease-in-out 3;
 }
 
+/* Clouds */
+.cloud {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 
+    60px 0px 0 20px white, 
+    120px 10px 0 30px white, 
+    180px -10px 0 25px white;
+  width: 80px;
+  height: 80px;
+  opacity: 0.9;
+  z-index: 0;
+}
+
+/* Cloud positions */
+.cloud1 {
+  top: 8%;
+  left: 5%;
+  transform: scale(1.3);
+}
+.cloud2 {
+  top: 20%;
+  right: 8%;
+  transform: scale(1.6);
+}
+.cloud3 {
+  bottom: 12%;
+  left: 12%;
+  transform: scale(1.4);
+}
+
+/* Birds */
+.bird {
+  position: absolute;
+  font-size: 24px;
+  z-index: 0;
+  animation: fly 20s linear infinite;
+  text-shadow: 2px 2px 0 #000;
+}
+
+@keyframes fly {
+  from {
+    transform: translateX(-100vw);
+  }
+  to {
+    transform: translateX(100vw);
+  }
+}
+
 @media (max-width: 900px) {
   .wheel-wrapper {
-    width: 320px;
-    height: 320px;
+    width: 300px;
+    height: 300px;
   }
   
   .segment {
     font-size: 0.9rem;
-    padding-top: 15px;
-    padding-left: 30px;
   }
   
-  .segment span {
-    width: 60px;
+  .segment-text {
+    top: 25px;
+    font-size: 0.8rem;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
   }
 }
 
 @media (max-width: 500px) {
   .wheel-wrapper {
-    width: 280px;
-    height: 280px;
+    width: 250px;
+    height: 250px;
   }
   
   .header h1 {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
   }
   
   .segment {
-    font-size: 0.8rem;
-    padding-top: 10px;
-    padding-left: 25px;
+    font-size: 0.7rem;
   }
   
-  .segment span {
-    width: 50px;
+  .segment-text {
+    top: 20px;
+    font-size: 0.7rem;
+    padding: 0 8px;
   }
   
   .button-group {
@@ -679,6 +778,15 @@ function redeemGiftCode() {
   
   .input-group {
     flex-direction: column;
+  }
+  
+  .controls {
+    gap: 15px;
+  }
+  
+  .spin-btn {
+    padding: 15px 20px;
+    font-size: 1.1rem;
   }
 }
 </style>
