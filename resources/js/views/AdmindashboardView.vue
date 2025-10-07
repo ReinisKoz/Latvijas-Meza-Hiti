@@ -25,19 +25,44 @@ const handleFileChange = (e, type) => {
 
 const addAnimal = async () => {
   try {
+    // Sagatavo FormData
     const formData = new FormData()
     formData.append('nosaukums', newAnimal.value.nosaukums)
     if (newAnimal.value.bilde) formData.append('bilde', newAnimal.value.bilde)
     if (newAnimal.value.audio) formData.append('audio', newAnimal.value.audio)
 
+    // Debug: pārbaudi, ko sūti
+    for (let pair of formData.entries()) {
+      console.log(`${pair[0]}:`, pair[1])
+    }
+
+    // POST pieprasījums
     await axios.post('/api/dzivnieki', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
 
+    // Reset formas laukus
     newAnimal.value = { nosaukums: '', bilde: null, audio: null }
+
+    // Ielādē dzīvniekus atkārtoti
     fetchAnimals()
+
   } catch (error) {
-    console.error('Kļūda pievienojot dzīvnieku:', error)
+    // Ja Laravel atgriež validācijas kļūdas
+    if (error.response && error.response.status === 422) {
+      const errors = error.response.data.errors
+      console.error('Validācijas kļūdas:', errors)
+
+      // Parādi kļūdas lietotājam
+      let message = 'Neizdevās pievienot dzīvnieku:\n'
+      for (const field in errors) {
+        message += `${field}: ${errors[field].join(', ')}\n`
+      }
+      alert(message)
+    } else {
+      console.error('Kļūda pievienojot dzīvnieku:', error)
+      alert('Kļūda pievienojot dzīvnieku. Pārbaudiet konsoli.')
+    }
   }
 }
 
