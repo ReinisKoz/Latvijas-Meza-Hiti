@@ -1,64 +1,31 @@
+// scripts.js
 import interact from 'interactjs'
-import { Howl } from 'howler';
-import axios from "axios";
-
-let snapTargets = []                 // Glabā visu aktīvo nomešanas zonu (dropzone) koordinātas, lai dzīvnieki varētu pievilkties pareizajai vietai
-let dropzones = document.querySelectorAll('.dropzone')
+import { Howl } from 'howler'
+import axios from 'axios'
 
 // --------------------------------------------------------------------
-// Funkcija, kas aprēķina un atjauno visu dropzone (nomešanas zonu)
-// koordinātas. To izmanto, lai pareizi snapotu (pievilktu) dzīvniekus,
-// neatkarīgi no loga izmēra, scrolla vai satura izmaiņām.
+// Global state
 // --------------------------------------------------------------------
-async function updateSnapTargets() {
-  snapTargets = []
-  dropzones = document.querySelectorAll('.dropzone')
+let snapTargets = []                 // Dropzone snap positions
+let dropzones = []                   // Cached dropzones
 
-  dropzones.forEach((dz) => {
-    const rect = dz.getBoundingClientRect()
-    snapTargets.push({
-      x: rect.left + rect.width / 2,   // X koordināta zonas centrā
-      y: rect.top + rect.height / 2,   // Y koordināta zonas centrā
-    })
-  })
-  return snapTargets
+export const animalPositions = {}    // Maps dropzone -> animal id
+
+export const timeline = {
+  cols: 5,
+  rows: 5,
+  bpm: 60,
+  length: 5,
+  volume: 1.0
 }
 
-// Inicializē dropzonu koordinātas uzreiz pēc lapas ielādes
-updateSnapTargets()
-
-// Kad maina loga izmēru, koordinātas ir jāpārrēķina.
-// Tiek izmantots "debounce" (aizture), lai izvairītos no pārlieku biežas pārrēķināšanas.
-let resizeTimeout
-window.addEventListener('resize', async () => {
-  clearTimeout(resizeTimeout)
-  resizeTimeout = setTimeout(async () => {
-    await updateSnapTargets()
-  }, 150)
-})
-
-// Tāpat atjaunina koordinātas, ja scrollē galveno konteineru (piemēram, timeline skatā).
-window.addEventListener('DOMContentLoaded', () => {
-  const scrollContainer = document.querySelector('.top-container')
-  if (scrollContainer) {
-    let scrollTimeout
-    scrollContainer.addEventListener('scroll', async () => {
-      clearTimeout(scrollTimeout)
-      scrollTimeout = setTimeout(async () => {
-        await updateSnapTargets()
-      }, 150)
-    })
-  }
-})
+export const animalSounds = {}
+const soundCounters = {}
+let soundsLoaded = false
 
 // --------------------------------------------------------------------
-// Palīgfunkcijas ID sadalīšanai
+// Helpers
 // --------------------------------------------------------------------
-
-// Dzīvnieku ID piemēram "bear-2" tiek sadalīts:
-//   -> letters = "bear"
-//   -> number = 2
-// Tas ļauj atšķirt dzīvnieka tipu un tā kopijas kārtas numuru.
 function splitAnimalId(id) {
   const parts = id.split('-')
   if (parts.length === 2) {
@@ -69,10 +36,6 @@ function splitAnimalId(id) {
   return null
 }
 
-// Dropzonas ID piemēram "dropzone-6" tiek pārveidots rindas/kolonnas koordinātās.
-//   -> row = dropzonas rinda timeline režģī
-//   -> col = dropzonas kolonna timeline režģī
-// Tas tiek izmantots, lai precīzi būvētu ritma matricu (beatPattern).
 function splitDropZonelId(id) {
   const parts = id.split('-')
   if (parts.length === 2) {
@@ -87,184 +50,6 @@ function splitDropZonelId(id) {
   return null
 }
 
-// --------------------------------------------------------------------
-// Globāli stāvokļi un konfigurācija
-// --------------------------------------------------------------------
-export const animalPositions = {}    // Mapē saglabā, kurš dzīvnieks atrodas kurā dropzonā: { "dropzone-5": "bear-1", ... }
-
-export const timeline = {
-  cols: 5,       // Kolonnu skaits ritma matricā
-  rows: 5,       // Rindu skaits ritma matricā (cik dažādi dzīvnieku slāņi var būt vienā reizē)
-  bpm: 60,       // Beats per minute (ātrums)
-  length: 5,     // Kopējais soļu skaits (ritma garums)
-  volume: 1.0    // Skaļuma līmenis (no 0 līdz 1)
-}
-
-// --------------------------------------------------------------------
-// Drag & drop funkcionalitāte
-// --------------------------------------------------------------------
-export function enableDragDrop() {
-  const snapTargetIds = {}           // Karte starp dropzonu ID un to indeksu snapTargets masīvā
-  var freeSnapTargets = []           // Aktīvie snap punkti, kas vēl nav aizņemti
-  var animalsInDeck = document.querySelectorAll('.animal')
-  var animalTypes = {}               // Skaita katra tipa dzīvniekus (lai var ģenerēt jaunas kopijas)
-  var animalDeckPositions = {}       // Saglabā katra dzīvnieka sākotnējo pozīciju "deckā"
-
-  // Inicializē sākuma datus visiem dzīvniekiem "deckā"
-  animalsInDeck.forEach((animal) => {
-    const rect = animal.getBoundingClientRect()
-    const animalType = splitAnimalId(animal.id).letters
-    animalTypes[animalType] = 0
-    animalDeckPositions[animalType] = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    }
-  })
-
-  // Saglabā dropzonu koordinātas un indeksus
-  let i = 0
-  dropzones.forEach((dz) => {
-    const rect = dz.getBoundingClientRect()
-    snapTargets.push({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    })
-    snapTargetIds[dz.id] = i
-    i++
-  })
-
-  freeSnapTargets = structuredClone(snapTargets)
-
-  // Aktivizē dzīvnieku pārvilkšanu ar interact.js
-  interact('.draggable').draggable({
-    modifiers: [
-      interact.modifiers.snap({
-        targets: freeSnapTargets,              // snap punkti ir dropzonu centri
-        range: 100,                            // snap tuvuma rādiuss pikseļos
-        relativePoints: [{ x: 0.5, y: 0.5 }],  // snap notiek pēc objekta centra
-      })
-    ],
-    listeners: {
-      // Notiek, kad lietotājs sāk vilkt dzīvnieku
-      start(event) {
-      const original = event.target
-      original.style.zIndex = 2000
-
-      const clone = original.cloneNode(true)
-      const splitedId = splitAnimalId(original.id)
-
-      // Free snap targets again
-      delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === original.id)]
-      for (let i = 0; i < snapTargets.length; i++) {
-        freeSnapTargets[i] = snapTargets[i]
-      }
-      for (const dz in animalPositions) {
-        delete freeSnapTargets[snapTargetIds[dz]]
-      }
-
-      // 🟢 Only handle reparenting for first (deck) instance
-      if (splitedId.number === 0) {
-        // Put back a fresh copy into the deck
-        clone.style.position = 'absolute'
-        clone.style.transform = `translate(0px, 0px)`
-        clone.style.margin = 0
-        clone.classList.add('draggable', 'animal')
-        clone.id = splitedId.letters + '-0'
-        original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters])
-        document.getElementById(splitedId.letters + '-card').appendChild(clone)
-
-        // 🟢 FIX: preserve screen position when moving original into <body>
-        const rect = original.getBoundingClientRect()
-        document.body.appendChild(original)
-        original.style.position = 'absolute'
-        original.style.left = rect.left + 'px'
-        original.style.top = rect.top + 'px'
-        original.setAttribute('data-x', 0)
-        original.setAttribute('data-y', 0)
-        original.style.transform = 'translate(0px, 0px)'
-      }
-    },
-      // Notiek, kamēr lietotājs velk dzīvnieku
-      move(event) {
-        var target = event.target
-        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx
-        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy
-        target.style.transform = `translate(${x}px, ${y}px)`
-        target.setAttribute('data-x', x)
-        target.setAttribute('data-y', y)
-      },
-      // Notiek, kad lietotājs atlaiž dzīvnieku (vilkšana beidzas)
-      end(event) {
-      const animal = event.target
-      try {
-        const dropzoneEl = event.relatedTarget
-        if (!dropzoneEl) throw new Error("No dropzone")
-
-        const dropzoneId = dropzoneEl.id
-
-        if (animalPositions[dropzoneId] && animalPositions[dropzoneId] !== animal.id) {
-          // Already occupied → remove the dragged animal
-          animal.remove()
-          return
-        }
-
-        // ✅ Snapshot before reparenting
-        const rect = dropzoneEl.getBoundingClientRect()
-
-        // Move into dropzone
-        dropzoneEl.appendChild(animal)
-        animal.style.position = "absolute"
-
-        // ✅ Reset positioning relative to new parent
-        const centerX = rect.width / 2 - animal.offsetWidth / 2
-        const centerY = rect.height / 2 - animal.offsetHeight / 2
-        animal.style.left = centerX + "px"
-        animal.style.top = centerY + "px"
-
-        // Reset transforms/offsets
-        animal.style.transform = "translate(0px, 0px)"
-        animal.setAttribute("data-x", 0)
-        animal.setAttribute("data-y", 0)
-
-        // Register position
-        animalPositions[dropzoneId] = animal.id
-      } catch (err) {
-        // If invalid drop → remove
-        animal.remove()
-      }
-    }
-
-    },
-  })
-
-  // Aktivizē dropzonas — tās pieņem dzīvniekus, kas tiek nomesti virsū
-  interact('.dropzone')
-    .dropzone({
-      ondrop: (event) => {
-        const animalId = event.relatedTarget.id
-        const dropzoneId = event.target.id
-        // Ja šajā dropzonā vēl nav dzīvnieka, saglabā pozīciju
-        if (animalPositions[dropzoneId] === undefined) {
-          animalPositions[dropzoneId] = animalId
-        }
-      },
-    })
-    .on('dropactivate', (event) => {
-      // Vizualizācija — dropzona kļūst aktīva, kad to var izmantot
-      event.target.classList.add('drop-activated')
-    })
-}
-
-// --------------------------------------------------------------------
-// Skaņu sistēma
-// --------------------------------------------------------------------
-export const animalSounds = {}      // Glabā visas dzīvnieku skaņas kā Howl objektus: { "bird": [Howl1, Howl2], "bear": [Howl] }
-const soundCounters = {}            // Saglabā, kuru no vairākām skaņām jāatskaņo nākamo (round-robin princips)
-let soundsLoaded = false            // Vai skaņas ir ielādētas
-
-// Normalizē audio ceļu, lai būtu derīgs URL
-// - Ja ceļš jau ir absolūts (http:// vai https://), atstāj kā ir
-// - Ja tas ir relatīvs, pievieno sākumā "/"
 function normalizeAudioUrl(url) {
   if (!url) return null
   if (/^https?:\/\//.test(url)) return url
@@ -272,10 +57,205 @@ function normalizeAudioUrl(url) {
   return '/' + url.replace(/^\/+/, '')
 }
 
-// Ielādē dzīvnieku skaņas no API
-// - Izveido Howl objektus katrai skaņai
-// - Pievieno tos animalSounds mapē
-// - Atzīmē, kad viss ielādēts
+// --------------------------------------------------------------------
+// Snap / dropzones
+// --------------------------------------------------------------------
+export async function updateSnapTargets() {
+  snapTargets = []
+  dropzones = document.querySelectorAll('.dropzone')
+
+  dropzones.forEach((dz) => {
+    const rect = dz.getBoundingClientRect()
+    snapTargets.push({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    })
+  })
+  return snapTargets
+}
+
+// --------------------------------------------------------------------
+// Rebuild state from DOM
+// --------------------------------------------------------------------
+function rebuildAnimalPositions() {
+  Object.keys(animalPositions).forEach(k => delete animalPositions[k])
+  document.querySelectorAll('.dropzone .animal').forEach(animal => {
+    const dz = animal.closest('.dropzone')
+    if (dz) {
+      animalPositions[dz.id] = animal.id
+    }
+  })
+}
+
+// --------------------------------------------------------------------
+// Listeners
+// --------------------------------------------------------------------
+let resizeHandler = null
+let scrollHandler = null
+
+async function attachListeners() {
+  // resize
+  resizeHandler = () => {
+    clearTimeout(window._resizeTimeout)
+    window._resizeTimeout = setTimeout(updateSnapTargets, 150)
+  }
+  window.addEventListener('resize', resizeHandler)
+
+  // scroll
+  const scrollContainer = document.querySelector('.top-container')
+  if (scrollContainer) {
+    scrollHandler = () => {
+      clearTimeout(window._scrollTimeout)
+      window._scrollTimeout = setTimeout(updateSnapTargets, 150)
+    }
+    scrollContainer.addEventListener('scroll', scrollHandler)
+  }
+}
+
+function detachListeners() {
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+    resizeHandler = null
+  }
+  const scrollContainer = document.querySelector('.top-container')
+  if (scrollContainer && scrollHandler) {
+    scrollContainer.removeEventListener('scroll', scrollHandler)
+    scrollHandler = null
+  }
+}
+
+// --------------------------------------------------------------------
+// Drag & Drop
+// --------------------------------------------------------------------
+export async function enableDragDrop() {
+  if (window._animalDragInitialized) return
+  window._animalDragInitialized = true
+
+  await updateSnapTargets()
+  rebuildAnimalPositions()
+  await attachListeners()
+
+  const snapTargetIds = {}
+  let freeSnapTargets = []
+  const animalsInDeck = document.querySelectorAll('.animal')
+  const animalTypes = {}
+
+  animalsInDeck.forEach((animal) => {
+    const type = splitAnimalId(animal.id).letters
+    animalTypes[type] = 0
+  })
+
+  let i = 0
+  dropzones.forEach((dz) => {
+    snapTargetIds[dz.id] = i++
+  })
+  freeSnapTargets = structuredClone(snapTargets)
+
+  interact('.draggable').draggable({
+    modifiers: [
+      interact.modifiers.snap({
+        targets: freeSnapTargets,
+        range: 100,
+        relativePoints: [{ x: 0.5, y: 0.5 }],
+      })
+    ],
+    listeners: {
+      start(event) {
+        const original = event.target
+        original.style.zIndex = 2000
+
+        const clone = original.cloneNode(true)
+        const splitedId = splitAnimalId(original.id)
+
+        // free targets again
+        delete animalPositions[
+          Object.keys(animalPositions).find(key => animalPositions[key] === original.id)
+        ]
+        for (let i = 0; i < snapTargets.length; i++) {
+          freeSnapTargets[i] = snapTargets[i]
+        }
+        for (const dz in animalPositions) {
+          delete freeSnapTargets[snapTargetIds[dz]]
+        }
+
+        if (splitedId.number === 0) {
+          clone.style.position = 'absolute'
+          clone.style.transform = `translate(0px, 0px)`
+          clone.style.margin = 0
+          clone.classList.add('draggable', 'animal')
+          clone.id = splitedId.letters + '-0'
+          original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters])
+          document.getElementById(splitedId.letters + '-card').appendChild(clone)
+
+          const rect = original.getBoundingClientRect()
+          document.body.appendChild(original)
+          original.style.position = 'absolute'
+          original.style.left = rect.left + 'px'
+          original.style.top = rect.top + 'px'
+          original.setAttribute('data-x', 0)
+          original.setAttribute('data-y', 0)
+          original.style.transform = 'translate(0px, 0px)'
+        }
+      },
+      move(event) {
+        const target = event.target
+        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx
+        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy
+        target.style.transform = `translate(${x}px, ${y}px)`
+        target.setAttribute('data-x', x)
+        target.setAttribute('data-y', y)
+      },
+      end(event) {
+        const animal = event.target
+        try {
+          const dropzoneEl = event.relatedTarget
+          if (!dropzoneEl) throw new Error("No dropzone")
+
+          const dropzoneId = dropzoneEl.id
+          if (animalPositions[dropzoneId] && animalPositions[dropzoneId] !== animal.id) {
+            animal.remove()
+            return
+          }
+
+          const rect = dropzoneEl.getBoundingClientRect()
+          dropzoneEl.appendChild(animal)
+          animal.style.position = "absolute"
+
+          const centerX = rect.width / 2 - animal.offsetWidth / 2
+          const centerY = rect.height / 2 - animal.offsetHeight / 2
+          animal.style.left = centerX + "px"
+          animal.style.top = centerY + "px"
+
+          animal.style.transform = "translate(0px, 0px)"
+          animal.setAttribute("data-x", 0)
+          animal.setAttribute("data-y", 0)
+
+          animalPositions[dropzoneId] = animal.id
+        } catch {
+          animal.remove()
+        }
+      }
+    }
+  })
+
+  interact('.dropzone')
+    .dropzone({
+      ondrop: (event) => {
+        const animalId = event.relatedTarget.id
+        const dropzoneId = event.target.id
+        if (animalPositions[dropzoneId] === undefined) {
+          animalPositions[dropzoneId] = animalId
+        }
+      },
+    })
+    .on('dropactivate', (event) => {
+      event.target.classList.add('drop-activated')
+    })
+}
+
+// --------------------------------------------------------------------
+// Sound loading
+// --------------------------------------------------------------------
 export async function loadAnimalSounds(apiPath = '/api/animal') {
   try {
     const res = await axios.get(apiPath)
@@ -318,8 +298,6 @@ export async function loadAnimalSounds(apiPath = '/api/animal') {
   }
 }
 
-// Iegūst atbilstošo Howl objektu dzīvnieka tipam
-// Ja vienam dzīvniekam ir vairākas skaņas, izvēlas nākamo secībā (round-robin)
 function getHowlFor(typeKey) {
   const arr = animalSounds[typeKey]
   if (!arr || arr.length === 0) return null
@@ -330,11 +308,10 @@ function getHowlFor(typeKey) {
 }
 
 // --------------------------------------------------------------------
-// Beat atskaņošana
+// Beat loop
 // --------------------------------------------------------------------
 let intervalId = null
 
-// Aptur ritma ciklu
 export function stopAnimalBeat() {
   if (intervalId) {
     clearInterval(intervalId)
@@ -342,17 +319,14 @@ export function stopAnimalBeat() {
   }
 }
 
-// Atskaņo ritmu balstoties uz dzīvnieku izvietojumu dropzonās
 export function playAnimalBeat() {
-  stopAnimalBeat()  // Pārliecinās, ka netiek atskaņoti vairāki cikli vienlaikus
-
+  stopAnimalBeat()
   if (!soundsLoaded) return
   if (!animalPositions || Object.keys(animalPositions).length === 0) return
 
   const animals = Object.keys(animalSounds)
   if (animals.length === 0) return
 
-  // Izveido ritma matricu: [dzīvnieks][kolonna] = 1 ja jāatskaņo, 0 ja klusums
   const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0))
 
   Object.keys(animalPositions).forEach(pos => {
@@ -374,7 +348,6 @@ export function playAnimalBeat() {
   const msPerBeat = (60 / timeline.bpm) * 1000
   const totalSteps = Math.max(1, timeline.cols)
 
-  // Regulāri atskaņo skaņas, ejot pa beatPattern matricu
   intervalId = setInterval(() => {
     beatPattern.forEach((row, i) => {
       if (row[step]) {
@@ -390,5 +363,12 @@ export function playAnimalBeat() {
   }, msPerBeat)
 }
 
-// Automātiski mēģina ielādēt skaņas pie moduļa ielādes
-loadAnimalSounds().catch(() => { })
+// --------------------------------------------------------------------
+// HMR cleanup
+// --------------------------------------------------------------------
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    window._animalDragInitialized = false
+    detachListeners()
+  })
+}
