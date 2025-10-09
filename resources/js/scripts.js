@@ -147,35 +147,43 @@ export function enableDragDrop() {
     listeners: {
       // Notiek, kad lietotājs sāk vilkt dzīvnieku
       start(event) {
-        const original = event.target
-        original.style.zIndex = 2000           // Padara aktīvo dzīvnieku redzamāku virs citiem
+      const original = event.target
+      original.style.zIndex = 2000
 
-        const clone = original.cloneNode(true)
-        const splitedId = splitAnimalId(original.id)
+      const clone = original.cloneNode(true)
+      const splitedId = splitAnimalId(original.id)
 
-        // Atbrīvo snap punktus no iepriekš aizņemtajām vietām
-        delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === event.target.id)]
-        for (var i = 0; i < snapTargets.length; i++) {
-          freeSnapTargets[i] = snapTargets[i]
-        }
-        for (const dz in animalPositions) {
-          delete freeSnapTargets[snapTargetIds[dz]]
-        }
+      // Free snap targets again
+      delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === original.id)]
+      for (let i = 0; i < snapTargets.length; i++) {
+        freeSnapTargets[i] = snapTargets[i]
+      }
+      for (const dz in animalPositions) {
+        delete freeSnapTargets[snapTargetIds[dz]]
+      }
 
-        // Ja tiek vilkta pirmā dzīvnieka instance (ar numuru 0), tad
-        // -> oriģināls tiek aizvilkts ārā
-        // -> klons tiek ielikts atpakaļ "deckā", lai spēlētājam vienmēr būtu pieejams rezerves eksemplārs
-        if (splitedId.number === 0) {
-          clone.style.position = 'absolute'
-          clone.style.transform = `translate(${0}px, ${0}px)`
-          clone.style.margin = 0
-          clone.classList.add('draggable', 'animal')
-          clone.id = splitedId.letters + '-0'
-          original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters])
-          document.getElementById(splitAnimalId(clone.id).letters + '-card').appendChild(clone)
-          document.body.appendChild(original)
-        }
-      },
+      // 🟢 Only handle reparenting for first (deck) instance
+      if (splitedId.number === 0) {
+        // Put back a fresh copy into the deck
+        clone.style.position = 'absolute'
+        clone.style.transform = `translate(0px, 0px)`
+        clone.style.margin = 0
+        clone.classList.add('draggable', 'animal')
+        clone.id = splitedId.letters + '-0'
+        original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters])
+        document.getElementById(splitedId.letters + '-card').appendChild(clone)
+
+        // 🟢 FIX: preserve screen position when moving original into <body>
+        const rect = original.getBoundingClientRect()
+        document.body.appendChild(original)
+        original.style.position = 'absolute'
+        original.style.left = rect.left + 'px'
+        original.style.top = rect.top + 'px'
+        original.setAttribute('data-x', 0)
+        original.setAttribute('data-y', 0)
+        original.style.transform = 'translate(0px, 0px)'
+      }
+    },
       // Notiek, kamēr lietotājs velk dzīvnieku
       move(event) {
         var target = event.target
@@ -187,28 +195,45 @@ export function enableDragDrop() {
       },
       // Notiek, kad lietotājs atlaiž dzīvnieku (vilkšana beidzas)
       end(event) {
-        const animal = event.target
-        try {
-          const dropzoneId = event.relatedTarget.id
-          if (animalPositions[dropzoneId] != animal.id) {
-            // Ja šī vieta jau ir aizņemta — dzīvnieks tiek noņemts
-            animal.remove()
-          } else {
-            // Pretējā gadījumā dzīvnieks tiek ievietots dropzonā
-            animal.style.transform = `translate(${0}px, ${0}px)`
-            animal.position = 'absolute'
-            event.relatedTarget.appendChild(animal)
-            animal.style.left = '0px'
-            animal.style.top = '0px'
-            const pos = event.relatedTarget.getBoundingClientRect()
-            // Pielāgo transform, lai dzīvnieks būtu centrēts zonā
-            animal.style.transform = `translate(${pos.width / 2 - 40}px, ${-pos.height / 2 + 20}px)`
-          }
-        } catch (err) {
-          // Ja nebija derīga dropzona, dzīvnieks tiek izņemts
+      const animal = event.target
+      try {
+        const dropzoneEl = event.relatedTarget
+        if (!dropzoneEl) throw new Error("No dropzone")
+
+        const dropzoneId = dropzoneEl.id
+
+        if (animalPositions[dropzoneId] && animalPositions[dropzoneId] !== animal.id) {
+          // Already occupied → remove the dragged animal
           animal.remove()
+          return
         }
+
+        // ✅ Snapshot before reparenting
+        const rect = dropzoneEl.getBoundingClientRect()
+
+        // Move into dropzone
+        dropzoneEl.appendChild(animal)
+        animal.style.position = "absolute"
+
+        // ✅ Reset positioning relative to new parent
+        const centerX = rect.width / 2 - animal.offsetWidth / 2
+        const centerY = rect.height / 2 - animal.offsetHeight / 2
+        animal.style.left = centerX + "px"
+        animal.style.top = centerY + "px"
+
+        // Reset transforms/offsets
+        animal.style.transform = "translate(0px, 0px)"
+        animal.setAttribute("data-x", 0)
+        animal.setAttribute("data-y", 0)
+
+        // Register position
+        animalPositions[dropzoneId] = animal.id
+      } catch (err) {
+        // If invalid drop → remove
+        animal.remove()
       }
+    }
+
     },
   })
 
