@@ -59,6 +59,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 function splitAnimalId(id) {
+  console.log('split animaal ID');
   console.log(id);
   const parts = id.split('-'); // split by dash
   if (parts.length === 2) {
@@ -66,6 +67,8 @@ function splitAnimalId(id) {
     if (isNaN(numberPart)) {
       return null; // invalid number
     }
+    console.log({letters: parts[0],
+      number: numberPart});
     return {
       letters: parts[0],
       number: numberPart
@@ -131,11 +134,15 @@ export function enableDragDrop() {
     //   lastI: 0
     // }
   })
-  console.log('animal positions')
+  console.log('animal positions a')
   console.log(animalDeckPositions);
+  console.log(animalTypes);
 
   let i = 0;
   dropzones.forEach((dz) => {
+    console.log(i);
+    console.log(snapTargetIds);
+    console.log(dz);
 
     // Saaglabā pzīcijas nomešanas zonām
     const rect = dz.getBoundingClientRect()
@@ -149,6 +156,9 @@ export function enableDragDrop() {
     i++;
     
   })
+  console.log('snapTargetIds');
+  console.log(snapTargetIds);
+  console.log(dropzones);
 
   // Izveido dziļo kopiju nomešanas zonām
   freeSnapTargets = structuredClone(snapTargets);
@@ -237,9 +247,16 @@ export function enableDragDrop() {
           for (var i = 0; i < snapTargets.length; i++) {
             freeSnapTargets[i] = snapTargets[i];
           }
+          
+          console.log('delete filled dropzones');
           for (const dz in animalPositions) {
+            console.log('delete');
+            console.log(dz);
+            console.log(snapTargetIds[dz]);
             delete freeSnapTargets[snapTargetIds[dz]];
           }
+          
+          console.log(freeSnapTargets);
 
           if (splitedId.number === 0) {
 
@@ -258,10 +275,17 @@ export function enableDragDrop() {
             // Mark the clone as draggable
             clone.classList.add('draggable');
             
+            console.log('aanimal types');
+            console.log(animalTypes);
+            console.log('new id');
             console.log(splitedId);
+            console.log(splitAnimalId(original.id));
             // console.log(++animalDeckPositions[splitedId.letters])
             clone.id = splitedId.letters + '-0';
             original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters]);
+
+            console.log(splitAnimalId(clone.id));
+            console.log(splitAnimalId(original.id));
 
             // const animalRectBefore = original.getBoundingClientRect();
 
@@ -348,8 +372,8 @@ export function enableDragDrop() {
         console.log(animalPositions);
         console.log('bear-0');
         console.log(document.getElementById('bear-0'));
-        console.log('bear-1');
-        console.log(document.getElementById('bear-1'));
+        // console.log('bear-1');
+        // console.log(document.getElementById('bear-1'));
 
         console.log('start rect');
         console.log( original.getBoundingClientRect());
@@ -531,77 +555,196 @@ export const timeline = {
   'cols': 5,
   'rows': 5,
   'bpm': 60,
-  'length': 1,
+  'length': 5,
   'volume': 1.0
 };
 
-let intervalId = null;
+// GLOBALS for sounds
+export const animalSounds = {}      // { "bird": [Howl, Howl2], "bear": [Howl] }
+const soundCounters = {}           // for round-robin selection per animal
+let soundsLoaded = false
 
-// // Preload animal sounds into Howl objects
-// const animalSounds = {
-//   bird: new Howl({ src: ['/sounds/bird1.mp3'], volume: timeline.volume }),
-//   bear: new Howl({ src: ['/sounds/bear1.mp3'], volume: timeline.volume }),
+/**
+ * Normalize an audio path returned from the API into a usable URL.
+ * If the API gives 'storage/dzivnieki/audio/xxx.mp3' -> '/storage/dzivnieki/audio/xxx.mp3'
+ * If it's already absolute (http://...) we keep it.
+ */
+function normalizeAudioUrl(url) {
+  if (!url) return null
+  if (/^https?:\/\//.test(url)) return url
+  if (url.startsWith('/')) return url
+  return '/' + url.replace(/^\/+/, '')
+}
 
-//   // add more animals as needed
-// };
+/**
+ * Load animal sounds from API and populate animalSounds map.
+ * Returns a Promise that resolves when all Howls have finished loading (best-effort).
+ */
+export async function loadAnimalSounds(apiPath = '/api/animal') {
+  console.log('started loading sounds0')
+  try {
+    const res = await axios.get(apiPath)
+    const list = res.data || []
+    const loadPromises = []
+
+    // reset
+    for (const k in animalSounds) delete animalSounds[k]
+    for (const k in soundCounters) delete soundCounters[k]
+    soundsLoaded = false
+
+    console.log('started loading sounds1')
+
+    list.forEach(item => {
+      // flexible property names: nosaukums, name, etc.
+      const rawName = item.nosaukums ?? item.name ?? item.nosaukums_lv ?? 'unknown'
+      const key = String(rawName).toLowerCase().trim().replace(/\s+/g, '-')
+
+      // flexible audio fields: audio, sound, audio_path ...
+      const audioField = item.audio ?? item.sound ?? item.audio_path ?? item.audio_url
+      if (!audioField) {
+        console.warn('Animal entry has no audio field, skipping:', item)
+        return
+      }
+
+      const audioUrl = normalizeAudioUrl(audioField)
+
+      console.log('Preparing Howl:', key, audioUrl)
 
 
-const res = await axios.get('/api/animal-sounds');
-const soundUrls = res.data;
+      // create Howl and store
+      const howl = new Howl({
+        src: [audioUrl],
+        volume: 1.0,
+        html5: true, 
+        preload: true
+      })
+      howl.on('load', () => console.log('✅ Loaded', audioUrl))
+      howl.on('loaderror', (id, err) => console.log('❌ Load error', audioUrl, err))
 
-const animalSounds = {};
-soundUrls.forEach(url => {
-  const name = url.split('/').pop().replace('.mp3', ''); // "bird1"
-  animalSounds[name] = new Howl({
-    src: [url],
-    volume: timeline.volume
-  });
-});
+      if (!animalSounds[key]) animalSounds[key] = []
+      animalSounds[key].push(howl)
+      soundCounters[key] = 0
 
-console.log(animalSounds);
+      // promise that resolves when this howl loads (don't reject whole batch on loaderror)
+      loadPromises.push(new Promise(resolve => {
+        howl.once('load', () => resolve({ key, url: audioUrl, success: true }))
+        howl.once('loaderror', (id, err) => {
+          console.error('Howl loaderror', audioUrl, err)
+          resolve({ key, url: audioUrl, success: false })
+        })
+      }))
+      console.log('started loading sounds2')
+    })
+    console.log('started loading sounds3')
+    // wait for all available howls to finish loading (best-effort)
+    await Promise.all(loadPromises)
+    console.log('started loading sounds4')
+    soundsLoaded = true
+    console.log('Animal sounds loaded:', Object.keys(animalSounds))
+    return { success: true, count: Object.keys(animalSounds).length }
+  } catch (err) {
+    console.error('Failed to load animal sounds from API', err)
+    return { success: false, error: err }
+  }
+}
+
+/**
+ * Return a single Howl instance for a given type key.
+ * If multiple variations exist, choose in round-robin fashion.
+ */
+function getHowlFor(typeKey) {
+  const arr = animalSounds[typeKey]
+  if (!arr || arr.length === 0) return null
+  if (arr.length === 1) return arr[0]
+  const idx = soundCounters[typeKey] % arr.length
+  soundCounters[typeKey] = idx + 1
+  return arr[idx]
+}
+
+// --------------------------------------------------------------------
+// PLAY / STOP logic updated to use animalSounds safely
+// --------------------------------------------------------------------
+
+let intervalId = null
 
 export function stopAnimalBeat() {
   if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
+    clearInterval(intervalId)
+    intervalId = null
+    console.log('Beat stopped')
   }
 }
 
 export function playAnimalBeat() {
-  stopAnimalBeat(); // prevent multiple intervals
+  stopAnimalBeat() // prevent duplicates
 
-  console.log('play beat');
+  if (!soundsLoaded) {
+    console.log(soundsLoaded)
+    console.warn('Sounds not loaded yet — call loadAnimalSounds() first or wait for it to finish.')
+    return
+  }
 
-  if (!animalPositions || Object.keys(animalPositions).length === 0) return;
+  if (!animalPositions || Object.keys(animalPositions).length === 0) {
+    console.warn('No animals placed — nothing to play.')
+    return
+  }
 
-  const animals = Object.keys(animalSounds);
+  const animals = Object.keys(animalSounds)
+  if (animals.length === 0) {
+    console.warn('No loaded animal sounds available.')
+    return
+  }
 
-  // Build beat pattern [animal][cols]
-  const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0));
+  // Build beatPattern based on available animals
+  const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0))
+  console.log(beatPattern);
 
   Object.keys(animalPositions).forEach(pos => {
-    const animal = animalPositions[pos];
-    const { row, col } = splitDropZonelId(pos);
-    const type = splitAnimalId(animal).letters;
-    const index = animals.indexOf(type);
-    if (index >= 0) beatPattern[index][col] = 1;
-  });
+    const animalId = animalPositions[pos]                 // e.g. "bird-3"
+    const { row, col } = splitDropZonelId(pos)
+    const type = splitAnimalId(animalId)?.letters
+    if (!type) return
+    const key = String(type).toLowerCase()               // should match keys in animalSounds
+    const idx = animals.indexOf(key)
+    if (idx >= 0 && col >= 0 && col < timeline.cols) {
+      beatPattern[idx][col] = 1
+    }
+  })
 
-  console.log('Beat Pattern:', beatPattern);
+  console.log(beatPattern);
 
-  let step = 0;
-  const msPerBeat = (60 / timeline.bpm) * 1000; // ms per beat
-  const totalSteps = timeline.cols;
+  // nothing to play?
+  const hasNote = beatPattern.some(r => r.some(cell => cell === 1))
+  if (!hasNote) {
+    console.warn('Beat pattern empty — nothing to play.')
+    return
+  }
+
+  let step = 0
+  const msPerBeat = (60 / timeline.bpm) * 1000
+  const totalSteps = Math.max(1, timeline.cols)
 
   intervalId = setInterval(() => {
-    // loop through animals
     beatPattern.forEach((row, i) => {
-      if (row[step] === 1) {
-        animalSounds[animals[i]].volume(timeline.volume);
-        animalSounds[animals[i]].play();
+      if (row[step]) {
+        const typeKey = animals[i]
+        const howl = getHowlFor(typeKey)
+        if (howl) {
+          howl.volume(timeline.volume ?? 1.0)
+          howl.play()
+        } else {
+          console.warn('No howl for', typeKey)
+        }
       }
-    });
+    })
 
-    step = (step + 1) % totalSteps; // loop back
-  }, msPerBeat);
+    step = (step + 1) % totalSteps
+  }, msPerBeat)
+
+  console.log('Playback started — msPerBeat:', msPerBeat, 'steps:', totalSteps)
 }
+
+// Kick off sound loading at module init (optional). You can remove this and call loadAnimalSounds() from Vue instead.
+loadAnimalSounds().catch(() => { /* ignored */ console.log('err loading sounds') })
+
+// ... rest of your file continues unchanged (enableDragDrop, timeline export, etc.)
