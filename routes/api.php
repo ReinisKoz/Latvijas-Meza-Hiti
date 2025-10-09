@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\DzivnieksController;
+use App\Http\Controllers\AnimalController;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
@@ -15,9 +15,9 @@ Route::post('/logout', [AuthController::class, 'logout']);
 
 Route::get('/authuser', [AuthController::class, 'authuser']);
 
-Route::get('/dzivnieki', [DzivnieksController::class, 'index']);
-Route::post('/dzivnieki', [DzivnieksController::class, 'store']);
-Route::delete('/dzivnieki/{id}', [DzivnieksController::class, 'destroy']);
+Route::get('/dzivnieki', [AnimalController::class, 'index']);
+Route::post('/dzivnieki', [AnimalController::class, 'store']);
+Route::delete('/dzivnieki/{id}', [AnimalController::class, 'destroy']);
 
 Route::get('/animal', function () {
     $animals = Animal::all()->map(function ($animal) {

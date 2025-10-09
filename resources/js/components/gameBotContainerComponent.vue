@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref, watch, nextTick } from 'vue'
 import axios from 'axios'
-import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, updateAnimalPositions, loadAnimalSounds } from '/resources/js/scripts.js'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds } from '/resources/js/scripts.js'
 import { Howler } from 'howler'
 
 // timeline reactive copy
@@ -54,7 +54,7 @@ watch(
     timeline.cols = state.cols
     timeline.bpm = newBpm
     timeline.length = newLength
-    updateAnimalPositions()
+    // updateAnimalPositions()
   },
   { immediate: true }
 )
@@ -188,9 +188,10 @@ watch(
 /* ANIMAL DECK */
 .animal-deck {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 120px);
+  grid-auto-flow: column;      /* 🟢 Fill grid by columns, not rows */
+  grid-template-rows: repeat(2, 1fr); /* 🟢 Always 2 rows vertically */
   gap: 16px;
-  align-content: flex-start;
+  align-content: start;
 }
 
 .animal-card {

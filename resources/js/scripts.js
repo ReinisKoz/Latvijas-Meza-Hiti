@@ -1,574 +1,245 @@
 import interact from 'interactjs'
-import {Howl, Howler} from 'howler';
+import { Howl } from 'howler';
 import axios from "axios";
 
-let snapTargets = []; // make sure this is accessible globally
-let dropzones = document.querySelectorAll('.dropzone');
+let snapTargets = []                 // Glabā visu aktīvo nomešanas zonu (dropzone) koordinātas, lai dzīvnieki varētu pievilkties pareizajai vietai
+let dropzones = document.querySelectorAll('.dropzone')
 
-// Async function to recalculate dropzone positions
+// --------------------------------------------------------------------
+// Funkcija, kas aprēķina un atjauno visu dropzone (nomešanas zonu)
+// koordinātas. To izmanto, lai pareizi snapotu (pievilktu) dzīvniekus,
+// neatkarīgi no loga izmēra, scrolla vai satura izmaiņām.
+// --------------------------------------------------------------------
 async function updateSnapTargets() {
-  snapTargets = []; // reset old values
-  dropzones = document.querySelectorAll('.dropzone');
+  snapTargets = []
+  dropzones = document.querySelectorAll('.dropzone')
 
   dropzones.forEach((dz) => {
-    const rect = dz.getBoundingClientRect();
+    const rect = dz.getBoundingClientRect()
     snapTargets.push({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    });
-  });
-
-  return snapTargets; // useful if you want to await results
+      x: rect.left + rect.width / 2,   // X koordināta zonas centrā
+      y: rect.top + rect.height / 2,   // Y koordināta zonas centrā
+    })
+  })
+  return snapTargets
 }
 
-// Run once on load
-updateSnapTargets();
+// Inicializē dropzonu koordinātas uzreiz pēc lapas ielādes
+updateSnapTargets()
 
-// Run again whenever window resizes (debounced for performance)
-let resizeTimeout;
+// Kad maina loga izmēru, koordinātas ir jāpārrēķina.
+// Tiek izmantots "debounce" (aizture), lai izvairītos no pārlieku biežas pārrēķināšanas.
+let resizeTimeout
 window.addEventListener('resize', async () => {
-  clearTimeout(resizeTimeout);
+  clearTimeout(resizeTimeout)
   resizeTimeout = setTimeout(async () => {
-    await updateSnapTargets();
-    console.log("Snap targets updated resize:", snapTargets);
-  }, 150); // debounce delay
-});
+    await updateSnapTargets()
+  }, 150)
+})
 
+// Tāpat atjaunina koordinātas, ja scrollē galveno konteineru (piemēram, timeline skatā).
 window.addEventListener('DOMContentLoaded', () => {
-  const scrollContainer = document.querySelector('.top-container'); // scrollable element
+  const scrollContainer = document.querySelector('.top-container')
   if (scrollContainer) {
-    let scrollTimeout;
+    let scrollTimeout
     scrollContainer.addEventListener('scroll', async () => {
-      clearTimeout(scrollTimeout);
+      clearTimeout(scrollTimeout)
       scrollTimeout = setTimeout(async () => {
-        await updateSnapTargets();
-        console.log("Snap targets updated scroll:", snapTargets);
-      }, 150);
-    });
-  } else {
-    console.warn('Scrollable container not found!');
+        await updateSnapTargets()
+      }, 150)
+    })
   }
-});
+})
 
-// const scrollBox = document.querySelector('.scroll-box') // make sure this exists in DOM
-// if (scrollBox) {
-//   scrollBox.addEventListener('scroll', (event) => {
-//     console.log('Element scrolled to:', event.target.scrollTop)
-//   })
-// }
+// --------------------------------------------------------------------
+// Palīgfunkcijas ID sadalīšanai
+// --------------------------------------------------------------------
 
-
+// Dzīvnieku ID piemēram "bear-2" tiek sadalīts:
+//   -> letters = "bear"
+//   -> number = 2
+// Tas ļauj atšķirt dzīvnieka tipu un tā kopijas kārtas numuru.
 function splitAnimalId(id) {
-  console.log('split animaal ID');
-  console.log(id);
-  const parts = id.split('-'); // split by dash
+  const parts = id.split('-')
   if (parts.length === 2) {
-    const numberPart = parseInt(parts[1], 10); // convert to integer
-    if (isNaN(numberPart)) {
-      return null; // invalid number
-    }
-    console.log({letters: parts[0],
-      number: numberPart});
-    return {
-      letters: parts[0],
-      number: numberPart
-    };
-  } else {
-    return null; // invalid format
+    const numberPart = parseInt(parts[1], 10)
+    if (isNaN(numberPart)) return null
+    return { letters: parts[0], number: numberPart }
   }
+  return null
 }
 
+// Dropzonas ID piemēram "dropzone-6" tiek pārveidots rindas/kolonnas koordinātās.
+//   -> row = dropzonas rinda timeline režģī
+//   -> col = dropzonas kolonna timeline režģī
+// Tas tiek izmantots, lai precīzi būvētu ritma matricu (beatPattern).
 function splitDropZonelId(id) {
-  console.log(id);
-  const parts = id.split('-'); // split by dash
+  const parts = id.split('-')
   if (parts.length === 2) {
-    // const rowPart = parseInt(parts[1], 10); // convert to integer
-    // if (isNaN(numberPart)) {
-    //   return null; // invalid number
-    // }
-    const numberPart = parseInt(parts[1], 10); // convert to integer
-    if (isNaN(numberPart)) {
-      return null; // invalid number
-    }
+    const numberPart = parseInt(parts[1], 10)
+    if (isNaN(numberPart)) return null
     return {
       letters: parts[0],
       row: numberPart % timeline.rows,
       col: Math.floor(numberPart / timeline.rows)
-    };
-  } else {
-    return null; // invalid format
+    }
   }
+  return null
 }
 
-export const animalPositions = {}
+// --------------------------------------------------------------------
+// Globāli stāvokļi un konfigurācija
+// --------------------------------------------------------------------
+export const animalPositions = {}    // Mapē saglabā, kurš dzīvnieks atrodas kurā dropzonā: { "dropzone-5": "bear-1", ... }
 
-export function updateAnimalPositions() {
-
+export const timeline = {
+  cols: 5,       // Kolonnu skaits ritma matricā
+  rows: 5,       // Rindu skaits ritma matricā (cik dažādi dzīvnieku slāņi var būt vienā reizē)
+  bpm: 60,       // Beats per minute (ātrums)
+  length: 5,     // Kopējais soļu skaits (ritma garums)
+  volume: 1.0    // Skaļuma līmenis (no 0 līdz 1)
 }
 
+// --------------------------------------------------------------------
+// Drag & drop funkcionalitāte
+// --------------------------------------------------------------------
 export function enableDragDrop() {
-  
-  // const dropzones = document.querySelectorAll('.dropzone')
-  // const snapTargets = []
-  const snapTargetIds = {}
-  var freeSnapTargets = []
+  const snapTargetIds = {}           // Karte starp dropzonu ID un to indeksu snapTargets masīvā
+  var freeSnapTargets = []           // Aktīvie snap punkti, kas vēl nav aizņemti
   var animalsInDeck = document.querySelectorAll('.animal')
-  var animalTypes = {}
-  var animalDeckPositions = {}
-  var isSnappedToSomething = true;
-  const animalDeck = document.getElementById('animal-deck');
+  var animalTypes = {}               // Skaita katra tipa dzīvniekus (lai var ģenerēt jaunas kopijas)
+  var animalDeckPositions = {}       // Saglabā katra dzīvnieka sākotnējo pozīciju "deckā"
 
-  // Saglabā izejas pozīcijas dzīvniekiem
+  // Inicializē sākuma datus visiem dzīvniekiem "deckā"
   animalsInDeck.forEach((animal) => {
     const rect = animal.getBoundingClientRect()
-    const animalType = splitAnimalId(animal.id).letters;
+    const animalType = splitAnimalId(animal.id).letters
     animalTypes[animalType] = 0
     animalDeckPositions[animalType] = {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
     }
-    
-    // {
-    //   // x: rect.left + rect.width / 2,
-    //   // y: rect.top + rect.height / 2 - 400,
-    //   lastI: 0
-    // }
   })
-  console.log('animal positions a')
-  console.log(animalDeckPositions);
-  console.log(animalTypes);
 
-  let i = 0;
+  // Saglabā dropzonu koordinātas un indeksus
+  let i = 0
   dropzones.forEach((dz) => {
-    console.log(i);
-    console.log(snapTargetIds);
-    console.log(dz);
-
-    // Saaglabā pzīcijas nomešanas zonām
     const rect = dz.getBoundingClientRect()
     snapTargets.push({
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
     })
-
-    // Saglabā nomešanas zonu identifikātorus
-    snapTargetIds[dz.id] = i;
-    i++;
-    
+    snapTargetIds[dz.id] = i
+    i++
   })
-  console.log('snapTargetIds');
-  console.log(snapTargetIds);
-  console.log(dropzones);
 
-  // Izveido dziļo kopiju nomešanas zonām
-  freeSnapTargets = structuredClone(snapTargets);
+  freeSnapTargets = structuredClone(snapTargets)
 
-  
+  // Aktivizē dzīvnieku pārvilkšanu ar interact.js
   interact('.draggable').draggable({
-    // Inicializē nomešanas zonas
     modifiers: [
       interact.modifiers.snap({
-        targets: freeSnapTargets,
-        range: 100, 
-        relativePoints: [{ x: 0.5, y: 0.5 }],
+        targets: freeSnapTargets,              // snap punkti ir dropzonu centri
+        range: 100,                            // snap tuvuma rādiuss pikseļos
+        relativePoints: [{ x: 0.5, y: 0.5 }],  // snap notiek pēc objekta centra
       })
     ],
     listeners: {
+      // Notiek, kad lietotājs sāk vilkt dzīvnieku
       start(event) {
-        var dropzoneId;
-        const original = event.target;
-        original.style.zIndex = 2000;
+        const original = event.target
+        original.style.zIndex = 2000           // Padara aktīvo dzīvnieku redzamāku virs citiem
 
-        // original.parentNode()
+        const clone = original.cloneNode(true)
+        const splitedId = splitAnimalId(original.id)
 
-        // console.log('animal-' + splitAnimalId(original.id).letters);
-        // document.getElementById(splitAnimalId(original.id).letters + '-card').appendChild(original);
-        // original.style.transform = `translate(${0}px, ${0}px)`;
-        var animalRectBefore = original.getBoundingClientRect();
-        
-        console.log('pos after start');
-        console.log(animalDeckPositions['bird']);
-        console.log(animalRectBefore);
-
-        // original.style.position = 'absolute';
-        // // console.log(document.getElementById('animal-deck'));
-        // // document.body.appendChild(event.target)
-
-        // // // console.log(document.getElementById('animal-deck'));
-        // // // // document.getElementById('animal-deck').appendChild(original);
-        // const animalRectAfter = original.getBoundingClientRect();
-
-        // const deltaX = animalRectAfter.left - animalRectBefore.left;
-        // const deltaY = animalRectAfter.top - animalRectBefore.top;
-        // original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-        // if (splitAnimalId(original).number != 0) {
-        //   const animalRectAfter = original.getBoundingClientRect();
-
-        //   const deltaX = animalRectAfter.left - animalRectBefore.left;
-        //   const deltaY = animalRectAfter.top - animalRectBefore.top;
-        //   original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-        // } else {
-        //   const animalPos = animalDeckPositions[splitAnimalId(original)];
-        //   original.style.transform = `translate(${animalPos.x}px, ${animalPos.y}px)`;
-        // }
-        
-
-        try {
-          dropzoneId = event.relatedTarget.id;
-          const drrect = event.relatedTarget.getBoundingClientRect();
-          document.body.appendChild(original)
-
-          original.style.transform = `translate(${drrect.x}px, ${drrect.y}px)`;
-
-          console.log(`translate(${drrect.x}px, ${drrect.y}px) original translate from dz`);
-        } catch (err) {
-
-          // original.style.transform = `translate(${0}px, ${0}px)`;
-          // console.log('animal-' + splitAnimalId(original.id).letters);
-          // document.getElementById(splitAnimalId(original.id).letters + '-card').appendChild(original);
-          
-          // const animalRectBefore = original.getBoundingClientRect();
-          // original.style.position = 'absolute';
-          // const animalRectAfter = original.getBoundingClientRect();
-
-          // const deltaX = animalRectAfter.left - animalRectBefore.left;
-          // const deltaY = animalRectAfter.top - animalRectBefore.top;
-          // original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-          
-          const clone = original.cloneNode(true);
-
-          // clone.style.zIndex = 1000;
-          
-          const splitedId = splitAnimalId(original.id);
-
-          console.log(splitedId.number === 0);
-
-          delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === event.target.id)];
-          for (var i = 0; i < snapTargets.length; i++) {
-            freeSnapTargets[i] = snapTargets[i];
-          }
-          
-          console.log('delete filled dropzones');
-          for (const dz in animalPositions) {
-            console.log('delete');
-            console.log(dz);
-            console.log(snapTargetIds[dz]);
-            delete freeSnapTargets[snapTargetIds[dz]];
-          }
-          
-          console.log(freeSnapTargets);
-
-          if (splitedId.number === 0) {
-
-            
-
-            
-            // Position clone exactly over the original
-            // const rect = getBoundingClientRect(original);
-            clone.style.position = 'absolute';
-
-            clone.style.transform = `translate(${0}px, ${0}px)`;
-            // clone.style.left = original.offsetLeft + 'px';
-            // clone.style.top = original.offsetTop + 'px';
-            clone.style.margin = 0; // remove margins to avoid offsets
-
-            // Mark the clone as draggable
-            clone.classList.add('draggable');
-            
-            console.log('aanimal types');
-            console.log(animalTypes);
-            console.log('new id');
-            console.log(splitedId);
-            console.log(splitAnimalId(original.id));
-            // console.log(++animalDeckPositions[splitedId.letters])
-            clone.id = splitedId.letters + '-0';
-            original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters]);
-
-            console.log(splitAnimalId(clone.id));
-            console.log(splitAnimalId(original.id));
-
-            // const animalRectBefore = original.getBoundingClientRect();
-
-            clone.classList.add('animal');
-            clone.style.zIndex = 1000;
-        
-
-            
-            // console.log(document.getElementById('animal-deck'));
-            // document.getElementById('animal-deck').appendChild(original);
-            // const animalRectAfter = original.getBoundingClientRect();
-
-            // const deltaX = animalRectAfter.left - animalRectBefore.left;
-            // const deltaY = animalRectAfter.top - animalRectBefore.top;
-            // original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-
-            
-
-            // Add to DOM
-            // original.parentNode.appendChild(clone);
-            document.getElementById(splitAnimalId(clone.id).letters + '-card').appendChild(clone);
-            
-            // animalRectBefore = original.getBoundingClientRect();
-            document.body.appendChild(original)
-            const orgrct = original.getBoundingClientRect();
-            const clrect = clone.getBoundingClientRect();
-
-            // original.style.position = 'absolute';
-
-            // console.log(document.getElementById('animal-deck'));
-            // // document.getElementById('animal-deck').appendChild(original);
-            // var animalRectAfter = original.getBoundingClientRect();
-
-            var deltaX = (orgrct.x - clrect.x);
-            var deltaY = (orgrct.y - clrect.y);
-            console.log(`translate(${clrect.x}px, ${clrect.y}px)`)
-            // original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-            original.style.left = `${clrect.x}px`;
-            original.style.top = `${clrect.y}px`;
-            console.log(orgrct);
-            console.log(clrect);
-            console.log(original.getBoundingClientRect());
-            // original.style.left = +deltaX + 'px';
-            // original.style.top = +deltaY + 'px';
-
-            // console.log('the transforms');
-            // console.log(animalRectBefore);
-            // console.log(animalRectAfter);
-            // console.log(original.style.transform);
-
-
-            // Replace the dragged element with the clone
-            // event.interactable.draggable().options.listeners.move(event);
-            // event.interactable.draggable().options.listeners.end(event);
-            
-            // event.target = clone; // redirect dragging to the clone
-
-            
-
-            // const interaction = event.interaction;
-            // interaction.start(
-            //   { name: 'drag' },   // action
-            //   interact(clone), // new target
-            //   clone            // element
-            // );
-            
-            // if (!interaction.interacting()) {
-            //   // dynamically pick a target to drag
-            //   // const newTarget = document.querySelector('.dynamic-target');
-              
-              
-            // }
-          } else {
-            
-            
-          }
-          
+        // Atbrīvo snap punktus no iepriekš aizņemtajām vietām
+        delete animalPositions[Object.keys(animalPositions).find(key => animalPositions[key] === event.target.id)]
+        for (var i = 0; i < snapTargets.length; i++) {
+          freeSnapTargets[i] = snapTargets[i]
         }
-        // if (dropzoneId in animalPositions) {
-        //   // if (animalPositions[dropzoneId] == event.target.id) {
-        //   delete animalPositions[dropzoneId];
-        //   // }
-        // }
-        console.log(animalPositions);
-        console.log('bear-0');
-        console.log(document.getElementById('bear-0'));
-        // console.log('bear-1');
-        // console.log(document.getElementById('bear-1'));
+        for (const dz in animalPositions) {
+          delete freeSnapTargets[snapTargetIds[dz]]
+        }
 
-        console.log('start rect');
-        console.log( original.getBoundingClientRect());
-
-        var animalRectAfter = original.getBoundingClientRect();
-
-        // var deltaX = -(animalRectAfter.x - animalRectBefore.x);
-        // var deltaY = (animalRectAfter.y - animalRectBefore.y);
-        // // original.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-        // original.style.left = +deltaX + 'px';
-        // original.style.top = +deltaY + 'px';
-
-        console.log('the transforms');
-        console.log(animalRectBefore);
-        console.log(animalRectAfter);
-        console.log(original.style.transform);
-
-        // console.log('start transform1');
+        // Ja tiek vilkta pirmā dzīvnieka instance (ar numuru 0), tad
+        // -> oriģināls tiek aizvilkts ārā
+        // -> klons tiek ielikts atpakaļ "deckā", lai spēlētājam vienmēr būtu pieejams rezerves eksemplārs
+        if (splitedId.number === 0) {
+          clone.style.position = 'absolute'
+          clone.style.transform = `translate(${0}px, ${0}px)`
+          clone.style.margin = 0
+          clone.classList.add('draggable', 'animal')
+          clone.id = splitedId.letters + '-0'
+          original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters])
+          document.getElementById(splitAnimalId(clone.id).letters + '-card').appendChild(clone)
+          document.body.appendChild(original)
+        }
       },
+      // Notiek, kamēr lietotājs velk dzīvnieku
       move(event) {
         var target = event.target
-        console.log('move transform');
-        console.log(target.getBoundingClientRect());
-
-        // Iegūst nomešanas zonas identifikātoru
-        // isSnappedToSomething = true;
-        // var dropzoneId;
-        // try {
-        //   dropzoneId = event.dropzone.id;
-        // } catch (err) {
-        //   isSnappedToSomething = false;
-        // }
-
-        // const splitedId = splitAnimalId(target.id);
-        // if (splitedId.number === 0) {
-        //   target = document.getElementById(splitedId.letters + '-' + String(animalTypes[splitedId.letters]));
-        // }
-
-        // Kustina mērķi līdzi pelei
         const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx
         const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy
-
         target.style.transform = `translate(${x}px, ${y}px)`
         target.setAttribute('data-x', x)
         target.setAttribute('data-y', y)
-
-        
       },
+      // Notiek, kad lietotājs atlaiž dzīvnieku (vilkšana beidzas)
       end(event) {
-        console.log('bear-0');
-        console.log(document.getElementById('bear-0'));
-        console.log('bear-1');
-        console.log(document.getElementById('bear-1'));
-        const animal = event.target;
-        var dropzoneId;
+        const animal = event.target
         try {
-          dropzoneId = event.relatedTarget.id;
-          console.log(animalPositions[dropzoneId]);
-          console.log('dropzoneIdaaa');
-
+          const dropzoneId = event.relatedTarget.id
           if (animalPositions[dropzoneId] != animal.id) {
-            animal.remove();
+            // Ja šī vieta jau ir aizņemta — dzīvnieks tiek noņemts
+            animal.remove()
           } else {
-            
-            // target.setAttribute('data-x', 0)
-            // target.setAttribute('data-y', 0)
-            const animalRectBefore = animal.getBoundingClientRect();
-            animal.style.transform = `translate(${0}px, ${0}px)`;
-            animal.position = 'absolute';
-            event.relatedTarget.appendChild(animal);
-            const animalRectAfter = animal.getBoundingClientRect();
-            animal.style.left = '0px';
-            animal.style.top = '0px';
-
-            // const pos = snapTargets[snapTargetIds[dropzoneId]];
-            const pos = event.relatedTarget.getBoundingClientRect();
-            // animal.style.transform = `translate(${}px, ${pos.y}px)`;
-            // animal.style.left = +pos.left + 'px';
-            // animal.style.top = +pos.top + 'px';
-            // x: rect.left + rect.width / 2,
-            // y: rect.top + rect.height / 2,
-            animal.style.transform = `translate(${pos.width / 2 - 40}px, ${-pos.height / 2 + 20}px)`;
-
-            console.log('animal reltarget rect');
-            console.log(animal.getBoundingClientRect());
-            console.log(event.relatedTarget.getBoundingClientRect());
-
-            // const deltaX = animalRectAfter.left - animalRectBefore.left;
-            // const deltaY = animalRectAfter.top - animalRectBefore.top;
-            // animal.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
-            
-
+            // Pretējā gadījumā dzīvnieks tiek ievietots dropzonā
+            animal.style.transform = `translate(${0}px, ${0}px)`
+            animal.position = 'absolute'
+            event.relatedTarget.appendChild(animal)
+            animal.style.left = '0px'
+            animal.style.top = '0px'
+            const pos = event.relatedTarget.getBoundingClientRect()
+            // Pielāgo transform, lai dzīvnieks būtu centrēts zonā
+            animal.style.transform = `translate(${pos.width / 2 - 40}px, ${-pos.height / 2 + 20}px)`
           }
-          // if (dropzoneId === undefined) {
-          //   event.target.remove();
-          // }
-          // Atjauno nomešanas zonas
-          // for (var i = 0; i < snapTargets.length; i++) {
-          //   freeSnapTargets[i] = snapTargets[i];
-          // }
-          // for (const dz in animalPositions) {
-          //     delete freeSnapTargets[snapTargetIds[dz]];
-          //   }
-          // Izdzēš aizņemtās pozīcijas
-          // if (isSnappedToSomething) {
-            
-          // }
         } catch (err) {
-          // console.log(animal.id);
-          // // console.log(animalDeckPositions);
-          // const deckPosition = animalDeckPositions[animal.id];
-          // // console.log(deckPosition);
-          // const x = deckPosition['x'];
-          // const y = deckPosition['y'];
-
-          // animal.style.transform = `translate(${x}px, ${y}px)`
-          // animal.setAttribute('data-x', x)
-          // animal.setAttribute('data-y', y)
-          console.log(dropzoneId);
-          animal.remove();
-          
+          // Ja nebija derīga dropzona, dzīvnieks tiek izņemts
+          animal.remove()
         }
-
-        
-
-        // if (isSnappedToSomething === false) {
-        // }
-        
       }
     },
   })
-  // Islēdz nomešanas zonas
+
+  // Aktivizē dropzonas — tās pieņem dzīvniekus, kas tiek nomesti virsū
   interact('.dropzone')
     .dropzone({
-      // ondragenter: (event) => {
-      //   const animalId = event.relatedTarget.id;
-      //   const dropzoneId = event.target.id;
-
-      //   // Izdzēš iepriekšējo dzīvnieka pozīciju
-      //   // if (dropzoneId in animalPositions) {
-      //   //   if (animalPositions[dropzoneId] == animalId) {
-      //   //     delete animalPositions[dropzoneId];
-      //   //   }
-      //   // }
-      // },
       ondrop: (event) => {
-        const animalId = event.relatedTarget.id;
-        const dropzoneId = event.target.id;
-
-        // Saglabā jauno dzīvnieka pozīciju
+        const animalId = event.relatedTarget.id
+        const dropzoneId = event.target.id
+        // Ja šajā dropzonā vēl nav dzīvnieka, saglabā pozīciju
         if (animalPositions[dropzoneId] === undefined) {
-          animalPositions[dropzoneId] = animalId; 
+          animalPositions[dropzoneId] = animalId
         }
-        
-    },
+      },
     })
     .on('dropactivate', (event) => {
-      // const animal = event.relatedTarget;
-      
+      // Vizualizācija — dropzona kļūst aktīva, kad to var izmantot
       event.target.classList.add('drop-activated')
-
-      // if (isSnappedToSomething === false) {
-      //   console.log(animal.id);
-      //   console.log(animalDeckPositions);
-      //   const deckPosition = animalDeckPositions[animal.id];
-      //   console.log(deckPosition);
-      //   const x = deckPosition['x'];
-      //   const y = deckPosition['y'];
-
-      //   animal.style.transform = `translate(${x}px, ${y}px)`
-      //   animal.setAttribute('data-x', x)
-      //   animal.setAttribute('data-y', y)
-      // }
     })
-    
 }
 
-export const timeline = {
-  'cols': 5,
-  'rows': 5,
-  'bpm': 60,
-  'length': 5,
-  'volume': 1.0
-};
+// --------------------------------------------------------------------
+// Skaņu sistēma
+// --------------------------------------------------------------------
+export const animalSounds = {}      // Glabā visas dzīvnieku skaņas kā Howl objektus: { "bird": [Howl1, Howl2], "bear": [Howl] }
+const soundCounters = {}            // Saglabā, kuru no vairākām skaņām jāatskaņo nākamo (round-robin princips)
+let soundsLoaded = false            // Vai skaņas ir ielādētas
 
-// GLOBALS for sounds
-export const animalSounds = {}      // { "bird": [Howl, Howl2], "bear": [Howl] }
-const soundCounters = {}           // for round-robin selection per animal
-let soundsLoaded = false
-
-/**
- * Normalize an audio path returned from the API into a usable URL.
- * If the API gives 'storage/dzivnieki/audio/xxx.mp3' -> '/storage/dzivnieki/audio/xxx.mp3'
- * If it's already absolute (http://...) we keep it.
- */
+// Normalizē audio ceļu, lai būtu derīgs URL
+// - Ja ceļš jau ir absolūts (http:// vai https://), atstāj kā ir
+// - Ja tas ir relatīvs, pievieno sākumā "/"
 function normalizeAudioUrl(url) {
   if (!url) return null
   if (/^https?:\/\//.test(url)) return url
@@ -576,82 +247,54 @@ function normalizeAudioUrl(url) {
   return '/' + url.replace(/^\/+/, '')
 }
 
-/**
- * Load animal sounds from API and populate animalSounds map.
- * Returns a Promise that resolves when all Howls have finished loading (best-effort).
- */
+// Ielādē dzīvnieku skaņas no API
+// - Izveido Howl objektus katrai skaņai
+// - Pievieno tos animalSounds mapē
+// - Atzīmē, kad viss ielādēts
 export async function loadAnimalSounds(apiPath = '/api/animal') {
-  console.log('started loading sounds0')
   try {
     const res = await axios.get(apiPath)
     const list = res.data || []
     const loadPromises = []
 
-    // reset
     for (const k in animalSounds) delete animalSounds[k]
     for (const k in soundCounters) delete soundCounters[k]
     soundsLoaded = false
 
-    console.log('started loading sounds1')
-
     list.forEach(item => {
-      // flexible property names: nosaukums, name, etc.
       const rawName = item.nosaukums ?? item.name ?? item.nosaukums_lv ?? 'unknown'
       const key = String(rawName).toLowerCase().trim().replace(/\s+/g, '-')
-
-      // flexible audio fields: audio, sound, audio_path ...
       const audioField = item.audio ?? item.sound ?? item.audio_path ?? item.audio_url
-      if (!audioField) {
-        console.warn('Animal entry has no audio field, skipping:', item)
-        return
-      }
-
+      if (!audioField) return
       const audioUrl = normalizeAudioUrl(audioField)
 
-      console.log('Preparing Howl:', key, audioUrl)
-
-
-      // create Howl and store
       const howl = new Howl({
         src: [audioUrl],
         volume: 1.0,
-        html5: true, 
+        html5: true,
         preload: true
       })
-      howl.on('load', () => console.log('✅ Loaded', audioUrl))
-      howl.on('loaderror', (id, err) => console.log('❌ Load error', audioUrl, err))
 
       if (!animalSounds[key]) animalSounds[key] = []
       animalSounds[key].push(howl)
       soundCounters[key] = 0
 
-      // promise that resolves when this howl loads (don't reject whole batch on loaderror)
       loadPromises.push(new Promise(resolve => {
         howl.once('load', () => resolve({ key, url: audioUrl, success: true }))
-        howl.once('loaderror', (id, err) => {
-          console.error('Howl loaderror', audioUrl, err)
-          resolve({ key, url: audioUrl, success: false })
-        })
+        howl.once('loaderror', () => resolve({ key, url: audioUrl, success: false }))
       }))
-      console.log('started loading sounds2')
     })
-    console.log('started loading sounds3')
-    // wait for all available howls to finish loading (best-effort)
+
     await Promise.all(loadPromises)
-    console.log('started loading sounds4')
     soundsLoaded = true
-    console.log('Animal sounds loaded:', Object.keys(animalSounds))
     return { success: true, count: Object.keys(animalSounds).length }
   } catch (err) {
-    console.error('Failed to load animal sounds from API', err)
     return { success: false, error: err }
   }
 }
 
-/**
- * Return a single Howl instance for a given type key.
- * If multiple variations exist, choose in round-robin fashion.
- */
+// Iegūst atbilstošo Howl objektu dzīvnieka tipam
+// Ja vienam dzīvniekam ir vairākas skaņas, izvēlas nākamo secībā (round-robin)
 function getHowlFor(typeKey) {
   const arr = animalSounds[typeKey]
   if (!arr || arr.length === 0) return null
@@ -662,68 +305,51 @@ function getHowlFor(typeKey) {
 }
 
 // --------------------------------------------------------------------
-// PLAY / STOP logic updated to use animalSounds safely
+// Beat atskaņošana
 // --------------------------------------------------------------------
-
 let intervalId = null
 
+// Aptur ritma ciklu
 export function stopAnimalBeat() {
   if (intervalId) {
     clearInterval(intervalId)
     intervalId = null
-    console.log('Beat stopped')
   }
 }
 
+// Atskaņo ritmu balstoties uz dzīvnieku izvietojumu dropzonās
 export function playAnimalBeat() {
-  stopAnimalBeat() // prevent duplicates
+  stopAnimalBeat()  // Pārliecinās, ka netiek atskaņoti vairāki cikli vienlaikus
 
-  if (!soundsLoaded) {
-    console.log(soundsLoaded)
-    console.warn('Sounds not loaded yet — call loadAnimalSounds() first or wait for it to finish.')
-    return
-  }
-
-  if (!animalPositions || Object.keys(animalPositions).length === 0) {
-    console.warn('No animals placed — nothing to play.')
-    return
-  }
+  if (!soundsLoaded) return
+  if (!animalPositions || Object.keys(animalPositions).length === 0) return
 
   const animals = Object.keys(animalSounds)
-  if (animals.length === 0) {
-    console.warn('No loaded animal sounds available.')
-    return
-  }
+  if (animals.length === 0) return
 
-  // Build beatPattern based on available animals
+  // Izveido ritma matricu: [dzīvnieks][kolonna] = 1 ja jāatskaņo, 0 ja klusums
   const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0))
-  console.log(beatPattern);
 
   Object.keys(animalPositions).forEach(pos => {
-    const animalId = animalPositions[pos]                 // e.g. "bird-3"
+    const animalId = animalPositions[pos]
     const { row, col } = splitDropZonelId(pos)
     const type = splitAnimalId(animalId)?.letters
     if (!type) return
-    const key = String(type).toLowerCase()               // should match keys in animalSounds
+    const key = String(type).toLowerCase()
     const idx = animals.indexOf(key)
     if (idx >= 0 && col >= 0 && col < timeline.cols) {
       beatPattern[idx][col] = 1
     }
   })
 
-  console.log(beatPattern);
-
-  // nothing to play?
   const hasNote = beatPattern.some(r => r.some(cell => cell === 1))
-  if (!hasNote) {
-    console.warn('Beat pattern empty — nothing to play.')
-    return
-  }
+  if (!hasNote) return
 
   let step = 0
   const msPerBeat = (60 / timeline.bpm) * 1000
   const totalSteps = Math.max(1, timeline.cols)
 
+  // Regulāri atskaņo skaņas, ejot pa beatPattern matricu
   intervalId = setInterval(() => {
     beatPattern.forEach((row, i) => {
       if (row[step]) {
@@ -732,19 +358,12 @@ export function playAnimalBeat() {
         if (howl) {
           howl.volume(timeline.volume ?? 1.0)
           howl.play()
-        } else {
-          console.warn('No howl for', typeKey)
         }
       }
     })
-
     step = (step + 1) % totalSteps
   }, msPerBeat)
-
-  console.log('Playback started — msPerBeat:', msPerBeat, 'steps:', totalSteps)
 }
 
-// Kick off sound loading at module init (optional). You can remove this and call loadAnimalSounds() from Vue instead.
-loadAnimalSounds().catch(() => { /* ignored */ console.log('err loading sounds') })
-
-// ... rest of your file continues unchanged (enableDragDrop, timeline export, etc.)
+// Automātiski mēģina ielādēt skaņas pie moduļa ielādes
+loadAnimalSounds().catch(() => { })

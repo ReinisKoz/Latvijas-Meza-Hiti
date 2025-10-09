@@ -22,7 +22,7 @@ const props = reactive({ ...timeline })
             v-for="n in props.rows"
             :key="n"
             class="dropzone"
-            :id="`dropzone-${colIndex * props.rows + n}`"
+            :id="`dropzone-${(colIndex - 1) * props.cols + (n - 1)}`"
           ></div>
         </div>
         <img src="/public/tree1.png" alt="" class="unselectable"/>
