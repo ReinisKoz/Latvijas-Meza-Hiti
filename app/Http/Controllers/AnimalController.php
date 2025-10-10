@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Dzivnieks;
+use App\Models\Animal;
 use Illuminate\Support\Facades\Storage;
 
-class DzivnieksController extends Controller
+class AnimalController extends Controller
 {
     public function index()
     {
-        $dzivnieki = Dzivnieks::all()->map(function ($dz) {
+        $dzivnieki = Animal::all()->map(function ($dz) {
             $dz->bilde_url = $dz->bilde ? asset('storage/' . $dz->bilde) : null;
             $dz->audio_url = $dz->audio ? asset('storage/' . $dz->audio) : null;
             return $dz;
@@ -38,7 +38,7 @@ class DzivnieksController extends Controller
             $audioPath = $request->file('audio')->store('dzivnieki/audio', 'public');
         }
 
-        Dzivnieks::create([
+        Animal::create([
             'nosaukums' => $validated['nosaukums'],
             'bilde' => $bildePath,
             'audio' => $audioPath,
@@ -49,7 +49,7 @@ class DzivnieksController extends Controller
 
     public function destroy($id)
     {
-        $dzivnieks = Dzivnieks::findOrFail($id);
+        $dzivnieks = Animal::findOrFail($id);
 
         if ($dzivnieks->bilde) {
             Storage::disk('public')->delete($dzivnieks->bilde);

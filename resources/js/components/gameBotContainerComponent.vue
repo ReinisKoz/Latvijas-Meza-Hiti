@@ -1,26 +1,52 @@
 <script setup>
-import { onMounted, reactive, watch } from 'vue'
-import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, updateAnimalPositions } from '/resources/js/scripts.js'
+import { onMounted, reactive, ref, watch, nextTick } from 'vue'
+import axios from 'axios'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds } from '/resources/js/scripts.js'
 import { Howler } from 'howler'
 
-onMounted(() => {
-  enableDragDrop()
-})
-
-// ✅ make timeline reactive
+// timeline reactive copy
 const state = reactive({ ...timeline })
 
+// animals loaded from backend
+const animals = ref([])
+
+// async function fetchAnimals() {
+//   try {
+//     const res = await axios.get('/api/animal')
+//     animals.value = res.data
+//     console.log('Animals loaded:', animals.value)
+//   } catch (err) {
+//     console.error('❌ Failed to load animals:', err)
+//   }
+// }
+
+onMounted(async () => {
+  loadAnimalSounds()
+  const res = await axios.get('/api/animal')
+  animals.value = res.data
+})
+
+// Run drag-drop setup when animals change
+watch(animals, (newVal) => {
+  if (newVal.length > 0) {
+    nextTick(() => {
+      enableDragDrop()
+    })
+  }
+})
+
 function play() {
-  // apply updated options
+  // loadAnimalSounds()
   Howler.volume(state.volume)
   playAnimalBeat()
+  console.log(state)
 }
 
 function stop() {
   stopAnimalBeat()
 }
 
-// ✅ recalc cols whenever bpm or length changes
+// recalc cols on bpm/length change
 watch(
   () => [state.bpm, state.length],
   ([newBpm, newLength]) => {
@@ -28,13 +54,12 @@ watch(
     timeline.cols = state.cols
     timeline.bpm = newBpm
     timeline.length = newLength
-    updateAnimalPositions()
-    console.log('Timeline updated:', timeline)
+    // updateAnimalPositions()
   },
   { immediate: true }
 )
 
-// keep volume synced
+// sync volume
 watch(
   () => state.volume,
   (newVol) => {
@@ -64,24 +89,31 @@ watch(
         </label>
         <label>
           ⏱️ Length (s)
-          <input type="number" min="1" max="32767" v-model.number="state.length">
+          <input type="number" min="2" max="32767" v-model.number="state.length">
         </label>
       </div>
     </div>
 
     <!-- ANIMAL DECK -->
     <div class="animal-deck" id="animal-deck">
-      <div class="animal-card" id="bird-card">
-        <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal">
-        <span>Bird</span>
-      </div>
-      <div class="animal-card" id="bear-card">
-        <img id="bear-0" src="/public/bear1.png" alt="Bear" class="draggable animal">
-        <span>Bear</span>
+      <div
+        v-for="animal in animals"
+        :key="animal.id"
+        class="animal-card"
+        :id="animal.name.toLowerCase() + '-card'"
+      >
+        <img
+          :id="animal.name.toLowerCase() + '-0'"
+          :src="animal.image"
+          :alt="animal.name"
+          class="draggable animal"
+        >
+        <span>{{ animal.name }}</span>
       </div>
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .bottom-container {
@@ -156,9 +188,10 @@ watch(
 /* ANIMAL DECK */
 .animal-deck {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 120px);
+  grid-auto-flow: column;      /* 🟢 Fill grid by columns, not rows */
+  grid-template-rows: repeat(2, 1fr); /* 🟢 Always 2 rows vertically */
   gap: 16px;
-  align-content: flex-start;
+  align-content: start;
 }
 
 .animal-card {

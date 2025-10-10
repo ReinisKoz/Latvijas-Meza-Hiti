@@ -1,6 +1,7 @@
 <!-- WheelOfFortune.vue -->
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import axios from 'axios'
 
 const segments = [
   "100", "200", "300", "400", "500", 
@@ -93,34 +94,71 @@ function resetGame() {
   angle = 0;
 }
 
-function redeemGiftCode() {
-  const code = giftCode.value.trim().toUpperCase();
+// function redeemGiftCode() {
+//   const code = giftCode.value.trim().toUpperCase();
   
-  if (code === "FREESPIN2024") {
-    message.value = "🎉 Free spin unlocked! Click SPIN to use it!";
-    giftCode.value = "";
+//   if (code === "FREESPIN2024") {
+//     message.value = "🎉 Free spin unlocked! Click SPIN to use it!";
+//     giftCode.value = "";
     
-    setTimeout(() => {
-      spinWheel();
-    }, 1500);
-  } else if (code === "BONUS100") {
-    message.value = "🎁 $100 bonus added to your account!";
-    giftCode.value = "";
+//     setTimeout(() => {
+//       spinWheel();
+//     }, 1500);
+//   } else if (code === "BONUS100") {
+//     message.value = "🎁 $100 bonus added to your account!";
+//     giftCode.value = "";
     
-    spinHistory.value.unshift({
-      segment: "100 (Bonus)",
-      timestamp: new Date().toLocaleTimeString()
-    });
-  } else if (code) {
-    message.value = "❌ Invalid gift code. Try FREESPIN2024 or BONUS100";
-  } else {
+//     spinHistory.value.unshift({
+//       segment: "100 (Bonus)",
+//       timestamp: new Date().toLocaleTimeString()
+//     });
+//   } else if (code) {
+//     message.value = "❌ Invalid gift code. Try FREESPIN2024 or BONUS100";
+//   } else {
+//     message.value = "⚠️ Please enter a gift code";
+//   }
+  
+//   setTimeout(() => {
+//     message.value = "";
+//   }, 3000);
+// }
+
+async function redeemGiftCode() {
+  console.log('redeemGiftCode start')
+  if (!giftCode.value.trim()) {
     message.value = "⚠️ Please enter a gift code";
+    return;
   }
-  
-  setTimeout(() => {
-    message.value = "";
-  }, 3000);
+  try {
+    const res = await axios.post('/api/redeem', { code: giftCode.value });
+    console.log(res)
+    message.value = res.data.message;
+    if (res.data.success) {
+      if (res.data.reward === 'freespin') {
+        spinWheel();
+      } else if (res.data.reward === 'bonus100') {
+        spinHistory.value.unshift({
+          segment: "100 (Bonus)",
+          timestamp: new Date().toLocaleTimeString()
+        });
+      }
+    }
+  } catch (err) {
+    console.log(err)
+    message.value = err.response?.data?.message || "❌ Invalid code";
+  }
+  giftCode.value = "";
+  setTimeout(() => message.value = "", 3000);
 }
+
+const balance = ref(0)
+
+onMounted(async () => {
+  const res = await axios.get("/api/balance", {
+    headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+  })
+  balance.value = res.data.balance
+})
 </script>
 
 <template>
@@ -179,6 +217,9 @@ function redeemGiftCode() {
           <div class="result-label">Current Result:</div>
           <div class="result" :class="{ 'pulse': currentSegment }">
             {{ currentSegment || "-" }}
+          </div>
+          <div class="balance-display">
+            💰 Your Balance: ${{ balance }}
           </div>
         </div>
         
@@ -347,7 +388,7 @@ function redeemGiftCode() {
   top: 35px;
   left: 0;
   width: 100%;
-  text-align: center;
+  text-align: left;
   transform-origin: center;
   transform: rotate(18deg);
   padding: 0 15px;
