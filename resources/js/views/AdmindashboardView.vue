@@ -81,7 +81,46 @@ const logout = () => {
   window.location.href = '/' // vai cita login lapa
 }
 
-onMounted(fetchAnimals)
+// onMounted(fetchAnimals)
+
+// Existing code...
+const codes = ref([])
+const newCode = ref({ reward: '', expires_at: '' })
+
+const fetchCodes = async () => {
+  try {
+    const res = await axios.get('/api/codes')
+    codes.value = res.data
+  } catch (err) {
+    console.error('Error fetching codes:', err)
+  }
+}
+
+const addCode = async () => {
+  if (!newCode.value.reward) return alert('Enter reward type!')
+  try {
+    const res = await axios.post('/api/codes', newCode.value)
+    codes.value.unshift(res.data)
+    newCode.value = { reward: '', expires_at: '' }
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const deleteCode = async (id) => {
+  if (!confirm('Delete this code?')) return
+  try {
+    await axios.delete(`/api/codes/${id}`)
+    codes.value = codes.value.filter(c => c.id !== id)
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+onMounted(() => {
+  fetchAnimals()
+  fetchCodes()
+})
 </script>
 
 <template>
@@ -123,6 +162,44 @@ onMounted(fetchAnimals)
           <button @click="deleteAnimal(dz.id)" class="btn-danger">🗑️ Dzēst</button>
         </div>
       </div>
+    </div>
+
+    <!-- Redeem Codes Section -->
+  <div class="redeem-codes">
+    <h2>🎁 Manage Redeem Codes</h2>
+    <div class="form">
+      <label>Reward Type:</label>
+      <input v-model="newCode.reward" placeholder="e.g., freespin, bonus100" />
+
+      <label>Expiry (optional):</label>
+      <input type="date" v-model="newCode.expires_at" />
+
+      <button class="btn-primary" @click="addCode">✅ Generate Code</button>
+    </div>
+
+    <h3>Existing Codes</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Reward</th>
+            <th>Used?</th>
+            <th>Expires At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in codes" :key="c.id">
+            <td>{{ c.code }}</td>
+            <td>{{ c.reward }}</td>
+            <td>{{ c.is_used ? '✅' : '❌' }}</td>
+            <td>{{ c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '-' }}</td>
+            <td>
+              <button class="btn-danger" @click="deleteCode(c.id)">🗑️</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Problēmu risinājumu sadaļa -->
@@ -308,5 +385,41 @@ audio {
 .issue li {
   margin-bottom: 5px;
   color: #666;
+}
+
+.redeem-codes {
+  background: #f0f8ff;
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 40px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+th, td {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  text-align: center;
+}
+
+th {
+  background: #4ECDC4;
+  color: white;
+}
+
+td {
+  background: #ffffff;
+}
+
+input {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 100%;
 }
 </style>
