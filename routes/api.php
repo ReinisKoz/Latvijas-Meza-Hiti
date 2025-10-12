@@ -49,12 +49,12 @@ Route::post('/codes', [RedeemCodeController::class, 'store']);
 Route::delete('/codes/{id}', [RedeemCodeController::class, 'destroy']);
 Route::post('/redeem', [RedeemCodeController::class, 'redeem']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/redeem', [RedeemCodeController::class, 'redeem']);
-    Route::get('/balance', function (Request $request) {
-        return response()->json([
-            'balance' => $request->user()->balance
-        ]);
-    });
-});
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::post('/redeem', [RedeemCodeController::class, 'redeem']);
+//     Route::get('/balance', function (Request $request) {
+//         return response()->json([
+//             'balance' => $request->user()->balance
+//         ]);
+//     });
+// });
 

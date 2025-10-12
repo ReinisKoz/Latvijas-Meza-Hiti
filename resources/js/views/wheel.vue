@@ -218,9 +218,9 @@ onMounted(async () => {
           <div class="result" :class="{ 'pulse': currentSegment }">
             {{ currentSegment || "-" }}
           </div>
-          <div class="balance-display">
+          <!-- <div class="balance-display">
             💰 Your Balance: ${{ balance }}
-          </div>
+          </div> -->
         </div>
         
         <div class="gift-code-section">

@@ -33,43 +33,25 @@ class RedeemCodeController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function redeem(Request $request)
-    {
-        $request->validate([
-            'code' => 'required|string',
-        ]);
+    public function redeem(Request $request) {
+        $request->validate(['code' => 'required|string']);
+        $code = RedeemCode::where('code', strtoupper($request->code))->first();
 
-        $redeemCode = RedeemCode::where('code', $request->code)
-            ->where('is_used', false)
-            ->where(function ($q) {
-                $q->whereNull('expires_at')
-                ->orWhere('expires_at', '>', now());
-            })
-            ->first();
-
-        if (! $redeemCode) {
-            return response()->json(['message' => 'Invalid or expired code'], 400);
+        if (!$code) return response()->json(['success' => false, 'message' => 'Invalid code'], 400);
+        if ($code->is_used) return response()->json(['success' => false, 'message' => 'Code already used'], 400);
+        if ($code->expires_at && $code->expires_at->isPast()) {
+            return response()->json(['success' => false, 'message' => 'Code expired'], 400);
         }
 
-        $user = $request->user(); // Authenticated user
-
-
-        // Example: reward is numeric (money amount)
-        if (is_numeric($redeemCode->reward)) {
-            $user->balance += (float) $redeemCode->reward;
-            $user->save();
-        }
-
-        // mark code as used
-        $redeemCode->is_used = true;
-        $redeemCode->user_id = $user->id;
-        $redeemCode->save();
+        $code->is_used = true;
+        $code->user_id = auth()->id() ?? null;
+        $code->save();
 
         return response()->json([
-            'message' => 'Code redeemed successfully' + $user,
-            'new_balance' => $user->balance,
+            'success' => true,
+            'message' => 'Code redeemed successfully!',
+            'reward' => $code->reward
         ]);
     }
-
 }
 ?>
