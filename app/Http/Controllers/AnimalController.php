@@ -10,7 +10,7 @@ class AnimalController extends Controller
 {
     public function index()
     {
-        $dzivnieki = Animal::all()->map(function ($dz) {
+        $dzivnieki = Animal::where('is_unlockable', false)->map(function ($dz) {
             $dz->bilde_url = $dz->bilde ? asset('storage/' . $dz->bilde) : null;
             $dz->audio_url = $dz->audio ? asset('storage/' . $dz->audio) : null;
             return $dz;

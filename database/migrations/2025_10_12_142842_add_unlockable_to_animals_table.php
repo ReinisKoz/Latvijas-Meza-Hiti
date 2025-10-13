@@ -9,19 +9,21 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('redeem_codes', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('dzivnieki', function (Blueprint $table) {
+            $table->boolean('is_unlockable')->default(false); // true if it must be unlocked
         });
     }
+
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('redeem_codes');
+        Schema::table('animals', function (Blueprint $table) {
+            //
+        });
     }
 };

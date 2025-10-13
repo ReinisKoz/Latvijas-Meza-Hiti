@@ -16,4 +16,9 @@ class Animal extends Model
         'bilde',
         'audio',
     ];
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class)->withTimestamps();
+    }
 }
