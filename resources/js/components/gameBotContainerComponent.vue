@@ -28,8 +28,11 @@ function goToWheel() {
 
 onMounted(async () => {
   loadAnimalSounds()
-  const res = await axios.get('/api/animal')
+  // const res = await axios.get('/api/animal')
+  // animals.value = res.data
+  const res = await axios.get('/api/user/animals', { withCredentials: true })
   animals.value = res.data
+
 })
 
 // Run drag-drop setup when animals change

@@ -5,6 +5,7 @@ import gameView from "../views/gameView.vue";
 import LoggedView from "../views/LoggedView.vue";
 import wheel from "../views/wheel.vue";
 import AdmindashboardView from "../views/AdmindashboardView.vue";
+import ForgotPasswordView from "../views/ForgotPasswordView.vue";
 
 const routes = [
     {
@@ -36,6 +37,11 @@ const routes = [
         path: "/admindashboard",
         name: "admindashboard",
         component: AdmindashboardView,
+    },
+    {
+        path: "/forgotpassword",
+        name: "forgotpassword",
+        component: ForgotPasswordView,
     },
 ];
 

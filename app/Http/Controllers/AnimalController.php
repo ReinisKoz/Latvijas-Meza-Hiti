@@ -10,7 +10,7 @@ class AnimalController extends Controller
 {
     public function index()
     {
-        $dzivnieki = Animal::where('is_unlockable', false)->map(function ($dz) {
+        $dzivnieki = Animal::all()->map(function ($dz) {
             $dz->bilde_url = $dz->bilde ? asset('storage/' . $dz->bilde) : null;
             $dz->audio_url = $dz->audio ? asset('storage/' . $dz->audio) : null;
             return $dz;
@@ -62,5 +62,16 @@ class AnimalController extends Controller
         $dzivnieks->delete();
 
         return response()->json(['message' => 'Dzīvnieks izdzēsts!']);
+    }
+
+    public function userAnimals(Request $request)
+    {
+        // $user = auth()->user();
+
+        $animals = Animal::where('is_default', true)->get();
+            // ->orWhereHas('users', fn($q) => $q->where('users.id', $user->id))
+            // ->get();
+
+        return response()->json($animals);
     }
 }
