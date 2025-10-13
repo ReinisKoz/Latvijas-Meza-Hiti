@@ -15,9 +15,3 @@ Route::get('/{any}', function () {
 
 Route::middleware('authuser')->get('/api/user/animals', [AnimalController::class, 'userAnimals']);
 
-Route::middleware(['web'])->group(function () {
-    Route::get('/authuser', [AuthController::class, 'authuser']);
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/logout', [AuthController::class, 'logout']);
-});
