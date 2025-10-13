@@ -117,6 +117,16 @@ const deleteCode = async (id) => {
   }
 }
 
+const copyCode = async (code) => {
+  try {
+    await navigator.clipboard.writeText(code)
+    alert(`✅ Code "${code}" copied to clipboard!`)
+  } catch (err) {
+    console.error('Failed to copy:', err)
+    alert('❌ Could not copy code.')
+  }
+}
+
 onMounted(() => {
   fetchAnimals()
   fetchCodes()
@@ -190,7 +200,10 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-for="c in codes" :key="c.id">
-            <td>{{ c.code }}</td>
+            <td style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>{{ c.code }}</span>
+            <button class="btn-copy" @click="copyCode(c.code)">📋</button>
+            </td>
             <td>{{ c.reward }}</td>
             <td>{{ c.is_used ? '✅' : '❌' }}</td>
             <td>{{ c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '-' }}</td>
@@ -422,4 +435,20 @@ input {
   border: 1px solid #ccc;
   width: 100%;
 }
+
+.btn-copy {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-copy:hover {
+  background: #0056b3;
+}
+
 </style>
