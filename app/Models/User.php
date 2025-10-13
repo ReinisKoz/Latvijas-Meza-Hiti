@@ -49,4 +49,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function animals()
+    {
+        return $this->belongsToMany(Animal::class)->withTimestamps();
+    }
 }

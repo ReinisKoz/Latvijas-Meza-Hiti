@@ -3,6 +3,9 @@ import { onMounted, reactive, ref, watch, nextTick } from 'vue'
 import axios from 'axios'
 import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds } from '/resources/js/scripts.js'
 import { Howler } from 'howler'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 // timeline reactive copy
 const state = reactive({ ...timeline })
@@ -19,6 +22,9 @@ const animals = ref([])
 //     console.error('❌ Failed to load animals:', err)
 //   }
 // }
+function goToWheel() {
+  router.push('/wheel') // adjust route if needed
+}
 
 onMounted(async () => {
   loadAnimalSounds()
@@ -71,6 +77,17 @@ watch(
 
 <template>
   <div class="bottom-container">
+    <div class="wheel-box">
+      <h3>Get new animals</h3>
+      <img
+        src="/public/wheel-preview.png"
+        alt="Wheel of Fortune"
+        class="wheel-image"
+      >
+      <button class="btn wheel-btn" @click="goToWheel">
+        Spin the Wheel
+      </button>
+    </div>
     <!-- SONG OPTIONS BOX -->
     <div class="options-box">
       <div class="controls">
@@ -229,5 +246,49 @@ watch(
   font-size: 0.9rem;
   font-weight: bold;
   color: #166534;
+}
+
+/* 🟢 WHEEL BOX */
+.wheel-box {
+  background: #c9f5ff;
+  border: 3px solid #38bdf8;
+  border-radius: 16px;
+  padding: 16px 20px;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.wheel-box h3 {
+  color: #0369a1;
+  text-align: center;
+  font-weight: bold;
+}
+
+.wheel-image {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 50%;
+  border: 3px solid #38bdf8;
+  background: white;
+}
+
+.wheel-btn {
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+  font-size: 1rem;
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.wheel-btn:hover {
+  transform: scale(1.05);
 }
 </style>
