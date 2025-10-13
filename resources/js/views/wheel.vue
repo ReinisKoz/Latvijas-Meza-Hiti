@@ -169,7 +169,7 @@ onMounted(async () => {
 
         <!-- Home Button -->
         <button class="home-btn" @click="goHome">
-            <i class="fas fa-home"></i> Home
+            <i class="fas fa-home"></i> To game
         </button>
 
         <div class="game-top-container">
