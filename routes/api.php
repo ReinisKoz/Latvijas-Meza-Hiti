@@ -11,10 +11,14 @@ use App\Models\Animal;
 
 Route::post('/register', [AuthController::class, 'register']);
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout']);
+Route::middleware(['web'])->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/authuser', [AuthController::class, 'authuser']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
 
-Route::get('/authuser', [AuthController::class, 'authuser']);
+
+
 
 Route::get('/dzivnieki', [AnimalController::class, 'index']);
 Route::post('/dzivnieki', [AnimalController::class, 'store']);
@@ -32,17 +36,6 @@ Route::get('/animal', function () {
     return response()->json($animals);
 });
 
-Route::get('/user', function () {
-    $user = Auth::user();
-
-    return response()->json([
-        'user' => $user ? [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-        ] : null,
-    ]);
-});
 
 Route::get('/codes', [RedeemCodeController::class, 'index']);
 Route::post('/codes', [RedeemCodeController::class, 'store']);

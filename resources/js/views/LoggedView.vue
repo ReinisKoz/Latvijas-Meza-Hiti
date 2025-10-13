@@ -5,7 +5,12 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
-const profileName = ref("Jānis Bērziņš");
+const profileName = ref("");
+
+
+
+
+
 const userInitials = computed(() =>
   profileName.value
     .split(" ")
@@ -22,11 +27,18 @@ const newMusic = ref({
 });
 onMounted(async () => {
   try {
-    const response = await axios.get('/api/authuser')
-    console.log('DATA 123:', response.data)
-  } catch (error) {
-    console.error('auth user error:', error)
+  const response = await axios.get('/api/authuser');
+
+  if (response.data.isAuthenticated === true) {
+    profileName.value = response.data.user.name;
+  } else {
+    router.push('/');
   }
+
+} catch (error) {
+  console.error('auth error:', error);
+  router.push('/');
+}
 })
 
 const logout = async () => {
