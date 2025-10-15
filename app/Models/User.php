@@ -23,6 +23,8 @@ class User extends Authenticatable
     'email',
     'password',
     'phone',
+    'role',
+    'balance',  
     ];
 
     /**
@@ -46,5 +48,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function animals()
+    {
+        return $this->belongsToMany(Animal::class)->withTimestamps();
     }
 }

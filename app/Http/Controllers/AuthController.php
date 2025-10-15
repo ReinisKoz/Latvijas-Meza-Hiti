@@ -17,12 +17,33 @@ class AuthController extends Controller
 
 
 {
-    public function authuser() {
+    public function authuser(Request $request)
+{
+    try {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json([
+                'isAuthenticated' => false,
+                'user' => null,
+            ], 401);
+        }
+
         return response()->json([
-            'isAuthenticated' => Auth::check(),
-            'user' => Auth::user(),
+            'isAuthenticated' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
         ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'isAuthenticated' => false,
+            'error' => 'Authentication failed'
+        ], 500);
     }
+}
     
     public function register(Request $request)
     {
@@ -69,31 +90,27 @@ class AuthController extends Controller
             ], 422);
         }
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        if (Auth::attempt($request->only('email', 'password'))) {
+            $user = User::where('email', $request->email)->firstOrFail();
+            
             return response()->json([
-                'message' => 'Nepareizs e-pasts vai parole'
-            ], 401);
-        }
-
-        $user = User::where('email', $request->email)->firstOrFail();
-
-        return response()->json([
             'message' => 'Veiksmīga pieteikšanās',
             'user' => $user,
         ]);
+        }
+
+        return response()->json([
+                'message' => 'Nepareizs e-pasts vai parole'
+            ], 401);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-
+        Auth::logout();
         return response()->json([
             'message' => 'Veiksmīgi atslēgts'
         ]);
     }
 
-    public function user(Request $request)
-    {
-        return response()->json($request->user());
-    }
+
 }

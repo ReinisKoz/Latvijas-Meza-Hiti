@@ -1,43 +1,96 @@
 <script setup>
-import { onMounted, reactive, watch } from 'vue'
-import { enableDragDrop, playAnimalBeat, timeline } from '/resources/js/scripts.js'
-import * as Tone from 'tone'
+import { onMounted, reactive, ref, watch, nextTick } from 'vue'
+import axios from 'axios'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds } from '/resources/js/scripts.js'
+import { Howler } from 'howler'
+import { useRouter } from 'vue-router'
 
-onMounted(() => {
-  enableDragDrop()
-})
+const router = useRouter()
 
-// Make timeline reactive inside Vue
-const state = reactive(timeline)
+// timeline reactive copy
+const state = reactive({ ...timeline })
 
-function play() {
-  // apply updated options before playing
-  Tone.Transport.bpm.value = state.bpm
-  // Tone.Transport.seconds = state.length
-  Tone.Destination.volume.value = state.volume
+// animals loaded from backend
+const animals = ref([])
 
-  playAnimalBeat()
+// async function fetchAnimals() {
+//   try {
+//     const res = await axios.get('/api/animal')
+//     animals.value = res.data
+//     console.log('Animals loaded:', animals.value)
+//   } catch (err) {
+//     console.error('❌ Failed to load animals:', err)
+//   }
+// }
+function goToWheel() {
+  router.push('/wheel') // adjust route if needed
 }
 
-// Recalculate cols whenever bpm or length changes
+onMounted(async () => {
+  loadAnimalSounds()
+  // const res = await axios.get('/api/animal')
+  // animals.value = res.data
+  const res = await axios.get('/api/user/animals', { withCredentials: true })
+  animals.value = res.data
+
+})
+
+// Run drag-drop setup when animals change
+watch(animals, (newVal) => {
+  if (newVal.length > 0) {
+    nextTick(() => {
+      enableDragDrop()
+    })
+  }
+})
+
+function play() {
+  // loadAnimalSounds()
+  Howler.volume(state.volume)
+  playAnimalBeat()
+  console.log(state)
+}
+
+function stop() {
+  stopAnimalBeat()
+}
+
+// recalc cols on bpm/length change
 watch(
   () => [state.bpm, state.length],
   ([newBpm, newLength]) => {
     state.cols = Math.floor((newBpm / 60) * newLength)
-    console.log(timeline);
+    timeline.cols = state.cols
+    timeline.bpm = newBpm
+    timeline.length = newLength
+    // updateAnimalPositions()
   },
-  { immediate: true } // run on mount too
-  
+  { immediate: true }
 )
 
-function stop() {
-  Tone.Transport.stop()
-  Tone.Transport.cancel()
-}
+// sync volume
+watch(
+  () => state.volume,
+  (newVol) => {
+    timeline.volume = newVol
+    Howler.volume(newVol)
+  }
+)
 </script>
 
 <template>
   <div class="bottom-container">
+    <div class="wheel-box">
+      <h3>Get new animals</h3>
+      <img
+        src="/public/wheel-preview.png"
+        alt="Wheel of Fortune"
+        class="wheel-image"
+      >
+      <button class="btn wheel-btn" @click="goToWheel">
+        Spin the Wheel
+      </button>
+    </div>
     <!-- SONG OPTIONS BOX -->
     <div class="options-box">
       <div class="controls">
@@ -52,29 +105,35 @@ function stop() {
         </label>
         <label>
           🎵 BPM
-          <input type="number" min="30" max="1000" v-model.number="state.bpm">
+          <input type="number" min="30" max="300" v-model.number="state.bpm">
         </label>
         <label>
           ⏱️ Length (s)
-          <input type="number" min="1" max="32767" v-model.number="state.length">
+          <input type="number" min="2" max="32767" v-model.number="state.length">
         </label>
       </div>
     </div>
 
     <!-- ANIMAL DECK -->
     <div class="animal-deck" id="animal-deck">
-      <div class="animal-card" id="bird-card">
-        <img id="bird-0" src="/public/bird1.png" alt="Bird" class="draggable animal">
-        <span>Bird</span>
+      <div
+        v-for="animal in animals"
+        :key="animal.id"
+        class="animal-card"
+        :id="animal.name.toLowerCase() + '-card'"
+      >
+        <img
+          :id="animal.name.toLowerCase() + '-0'"
+          :src="animal.image"
+          :alt="animal.name"
+          class="draggable animal"
+        >
+        <span>{{ animal.name }}</span>
       </div>
-      <div class="animal-card" id="bear-card">
-        <img id="bear-0" src="/public/bear1.png" alt="Bear" class="draggable animal">
-        <span>Bear</span>
-      </div>
-      <!-- 🔮 Future animals -->
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .bottom-container {
@@ -149,9 +208,10 @@ function stop() {
 /* ANIMAL DECK */
 .animal-deck {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 120px);
+  grid-auto-flow: column;      /* 🟢 Fill grid by columns, not rows */
+  grid-template-rows: repeat(2, 1fr); /* 🟢 Always 2 rows vertically */
   gap: 16px;
-  align-content: flex-start;
+  align-content: start;
 }
 
 .animal-card {
@@ -174,16 +234,64 @@ function stop() {
 }
 
 .animal {
+  position: absolute;
   width: 80px;
   height: 80px;
   object-fit: contain;
   cursor: grab;
   user-select: none;
+  z-index: 5;
+  will-change: transform;
+  margin: 0px;
 }
 
 .animal-card span {
   font-size: 0.9rem;
   font-weight: bold;
   color: #166534;
+}
+
+/* 🟢 WHEEL BOX */
+.wheel-box {
+  background: #c9f5ff;
+  border: 3px solid #38bdf8;
+  border-radius: 16px;
+  padding: 16px 20px;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.wheel-box h3 {
+  color: #0369a1;
+  text-align: center;
+  font-weight: bold;
+}
+
+.wheel-image {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 50%;
+  border: 3px solid #38bdf8;
+  background: white;
+}
+
+.wheel-btn {
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+  font-size: 1rem;
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.wheel-btn:hover {
+  transform: scale(1.05);
 }
 </style>

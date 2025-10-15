@@ -3,7 +3,9 @@ import LoginView from "../views/LoginView.vue";
 import RegistrationView from "../views/registrationView.vue";
 import gameView from "../views/gameView.vue";
 import LoggedView from "../views/LoggedView.vue";
-import Wheel from "../views/wheel.vue";
+import wheel from "../views/wheel.vue";
+import AdmindashboardView from "../views/AdmindashboardView.vue";
+import ForgotPasswordView from "../views/ForgotPasswordView.vue";
 
 const routes = [
     {
@@ -29,7 +31,17 @@ const routes = [
     {
         path: "/wheel",
         name: "wheel",
-        component: Wheel,
+        component: wheel,
+    },
+    {
+        path: "/admindashboard",
+        name: "admindashboard",
+        component: AdmindashboardView,
+    },
+    {
+        path: "/forgotpassword",
+        name: "forgotpassword",
+        component: ForgotPasswordView,
     },
 ];
 

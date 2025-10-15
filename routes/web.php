@@ -2,22 +2,16 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AnimalController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/register', function () {
-    return view('welcome');
-});
-
-Route::get('/gameview', function () {
-    return view('welcome');
-});
-
-Route::get('/loggedview', function () {
+Route::get('/{any}', function () {
     return view('welcome');
 });
 
 
-// POST krch router get /registerUse /register 
+Route::middleware('authuser')->get('/api/user/animals', [AnimalController::class, 'userAnimals']);
+

@@ -1,145 +1,85 @@
 <script setup>
 import axios from 'axios';
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const email = ref('');
-const password = ref('');
 const loading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 
-const login = async () => {
+const sendResetLink = async () => {
   errorMessage.value = '';
   successMessage.value = '';
   loading.value = true;
 
   try {
-    const response = await axios.post('/api/login', {
-      email: email.value,
-      password: password.value
+    const response = await axios.post('/api/password/email', {
+      email: email.value
     });
 
-    console.log('Login successful:', response.data);
-
-    // ✅ Saglabā lietotāja datus un tokenu lokāli
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    localStorage.setItem('token', response.data.token);
-
-    successMessage.value = 'Login successful! Redirecting...';
-
-    // ✅ Pārbauda lietotāja lomu un novirza
-    const userRole = response.data.user.role;
-
-    setTimeout(() => {
-      if (userRole === 'admin') {
-        router.push('/admindashboard');
-      } else {
-        router.push('/loggedview');
-      }
-    }, 1500);
-
+    successMessage.value = 'Password reset link sent! Check your email.';
   } catch (error) {
-    console.error('Login error:', error);
-
-    if (error.response) {
-      if (error.response.data.errors) {
-        const errors = error.response.data.errors;
-        errorMessage.value = Object.values(errors)[0][0];
-      } else if (error.response.data.message) {
-        errorMessage.value = error.response.data.message;
-      } else {
-        errorMessage.value = 'Login failed. Please try again.';
-      }
-    } else if (error.request) {
-      errorMessage.value = 'Network error. Please check your connection.';
+    if (error.response?.data?.message) {
+      errorMessage.value = error.response.data.message;
     } else {
-      errorMessage.value = 'An unexpected error occurred.';
+      errorMessage.value = 'Failed to send reset link. Please try again.';
     }
   } finally {
     loading.value = false;
   }
 };
-
-// ✅ Kad lapa ielādējas, pārbauda, vai jau ir ielogots lietotājs
-onMounted(async () => {
-  try {
-    const response = await axios.get('/api/authuser');
-
-    if (response.data.isAuthenticated) {
-      const userRole = response.data.user.role;
-      if (userRole === 'admin') {
-        router.push('/admindashboard');
-      } else {
-        router.push('/loggedview');
-      }
-    }
-  } catch (error) {
-    console.warn('Auth check failed or not logged in.');
-  }
-});
 </script>
 
 <template>
   <div class="page">
-    <!-- Mākoņi -->
+    <!-- Clouds -->
     <div class="cloud cloud1"></div>
     <div class="cloud cloud2"></div>
     <div class="cloud cloud3"></div>
 
-    <!-- Putni -->
+    <!-- Birds -->
     <div class="bird">🐦</div>
     <div class="bird" style="top: 30%; animation-delay: 5s;">🕊️</div>
     <div class="bird" style="top: 70%; animation-delay: 10s;">🐤</div>
 
-    <!-- Login -->
+    <!-- Forgot Password Box -->
     <div class="login-container">
       <div class="login-header">
-        <h1>WELCOME BACK!</h1>
-        <p>Please login to your account</p>
+        <h1>Forgot Password</h1>
+        <p>Enter your email to reset your password</p>
       </div>
 
-      <form @submit.prevent="login">
+      <form @submit.prevent="sendResetLink">
         <div class="form-group">
-          <label for="username">E-mail</label>
+          <label for="email">Email</label>
           <input
-            type="text"
-            id="username"
+            type="email"
+            id="email"
             v-model="email"
             placeholder="Enter your email"
             required
           />
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            v-model="password"
-            placeholder="Enter your password"
-            required
-          />
-        </div>
-
         <button type="submit" class="btn-login" :disabled="loading">
-          {{ loading ? 'Logging in...' : 'LOGIN' }}
+          {{ loading ? 'Sending...' : 'Send Reset Link' }}
         </button>
 
-        <div class="error-message">{{ errorMessage }}</div>
         <div class="success-message">{{ successMessage }}</div>
+        <div class="error-message">{{ errorMessage }}</div>
       </form>
 
       <div class="login-footer">
-        <p>Don't have an account? <router-link to="/register">Sign up</router-link></p>
-        <p><router-link to="/forgotpassword">Password?</router-link></p>
+        <p>Remembered your password? <router-link to="/">Login</router-link></p>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Copy most of the login page styles */
 * {
   margin: 0;
   padding: 0;
@@ -259,20 +199,21 @@ onMounted(async () => {
 }
 
 .success-message {
-  color: #90ee90;
+  color: #00ff7f;
   text-align: center;
-  margin-top: 10px;
+  margin-top: 15px;
   font-size: 16px;
   min-height: 20px;
 }
 
+/* Clouds */
 .cloud {
   position: absolute;
   background: white;
   border-radius: 50%;
-  box-shadow:
-    60px 0px 0 20px white,
-    120px 10px 0 30px white,
+  box-shadow: 
+    60px 0px 0 20px white, 
+    120px 10px 0 30px white, 
     180px -10px 0 25px white;
   width: 100px;
   height: 100px;
@@ -280,10 +221,23 @@ onMounted(async () => {
   z-index: 0;
 }
 
-.cloud1 { top: 15%; left: 10%; transform: scale(1.5); }
-.cloud2 { top: 30%; right: 15%; transform: scale(2); }
-.cloud3 { bottom: 20%; left: 20%; transform: scale(1.8); }
+.cloud1 {
+  top: 15%;
+  left: 10%;
+  transform: scale(1.5);
+}
+.cloud2 {
+  top: 30%;
+  right: 15%;
+  transform: scale(2);
+}
+.cloud3 {
+  bottom: 20%;
+  left: 20%;
+  transform: scale(1.8);
+}
 
+/* Birds */
 .bird {
   position: absolute;
   font-size: 30px;
@@ -292,7 +246,11 @@ onMounted(async () => {
 }
 
 @keyframes fly {
-  from { transform: translateX(-100vw); }
-  to { transform: translateX(100vw); }
+  from {
+    transform: translateX(-100vw);
+  }
+  to {
+    transform: translateX(100vw);
+  }
 }
 </style>
