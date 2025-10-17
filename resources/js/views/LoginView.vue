@@ -135,6 +135,12 @@ onMounted(async () => {
         <p>Don't have an account? <router-link to="/register">Sign up</router-link></p>
         <p><router-link to="/forgotpassword">Password?</router-link></p>
       </div>
+      <div class="social-links">
+        <a href="https://www.instagram.com/YOUR_USERNAME" target="_blank" aria-label="Instagram">📸</a>
+        <a href="https://www.facebook.com/YOUR_USERNAME" target="_blank" aria-label="Facebook">📘</a>
+        <a href="https://x.com/YOUR_USERNAME" target="_blank" aria-label="X (Twitter)">🐦</a>
+        <a href="https://www.youtube.com/@YOUR_CHANNEL" target="_blank" aria-label="YouTube">▶️</a>
+      </div>
     </div>
   </div>
 </template>
@@ -290,6 +296,30 @@ onMounted(async () => {
   z-index: 0;
   animation: fly 20s linear infinite;
 }
+.social-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 25px;
+}
+
+.social-links a {
+  font-size: 30px;
+  text-decoration: none;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.social-links a:hover {
+  transform: scale(1.2);
+}
+
+
+.social-links a[aria-label="Instagram"] { color: #e1306c; }
+.social-links a[aria-label="Facebook"] { color: #1877f2; }
+.social-links a[aria-label="X (Twitter)"] { color: #000; }
+.social-links a[aria-label="YouTube"] { color: #ff0000; }
+
 
 @keyframes fly {
   from { transform: translateX(-100vw); }

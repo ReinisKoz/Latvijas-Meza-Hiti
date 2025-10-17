@@ -1,10 +1,6 @@
 <!-- WheelOfFortune.vue -->
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import axios from "axios";
-import { useRouter } from "vue-router";
-
-const router = useRouter();
+import { ref, computed, onMounted, watch } from "vue";
 
 const segments = [
     "100",
@@ -21,11 +17,13 @@ const segments = [
 
 const currentSegment = ref("");
 const isSpinning = ref(false);
-const spinHistory = ref([]);
 const soundEnabled = ref(true);
 const giftCode = ref("");
 const message = ref("");
 let angle = 0;
+
+// Load spin history from localStorage on component mount
+const spinHistory = ref([]);
 
 // Bright, playful colors matching the registration page style
 const segmentColors = [
@@ -49,6 +47,11 @@ const totalValue = computed(() => {
         return isNaN(value) ? total : total + value;
     }, 0);
 });
+
+// Save spin history to localStorage whenever it changes
+watch(spinHistory, (newHistory) => {
+    localStorage.setItem('wheelSpinHistory', JSON.stringify(newHistory));
+}, { deep: true });
 
 function spinWheel() {
     if (isSpinning.value) return;
@@ -82,6 +85,7 @@ function spinWheel() {
         spinHistory.value.unshift({
             segment: segments[index],
             timestamp: new Date().toLocaleTimeString(),
+            date: new Date().toLocaleDateString() // Add date for better tracking
         });
 
         isSpinning.value = false;
@@ -111,6 +115,7 @@ function resetGame() {
     spinHistory.value = [];
     currentSegment.value = "";
     angle = 0;
+    // localStorage will be automatically updated by the watcher
 }
 
 function goHome() {
@@ -134,6 +139,7 @@ async function redeemGiftCode() {
                 spinHistory.value.unshift({
                     segment: "100 (Bonus)",
                     timestamp: new Date().toLocaleTimeString(),
+                    date: new Date().toLocaleDateString()
                 });
             }
         }
@@ -148,12 +154,28 @@ async function redeemGiftCode() {
 const balance = ref(0);
 
 onMounted(async () => {
-    const res = await axios.get("/api/balance", {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-        },
-    });
-    balance.value = res.data.balance;
+    // Load spin history from localStorage
+    const savedHistory = localStorage.getItem('wheelSpinHistory');
+    if (savedHistory) {
+        try {
+            spinHistory.value = JSON.parse(savedHistory);
+        } catch (e) {
+            console.error('Error loading spin history:', e);
+            spinHistory.value = [];
+        }
+    }
+
+    // Load balance
+    try {
+        const res = await axios.get("/api/balance", {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+        });
+        balance.value = res.data.balance;
+    } catch (error) {
+        console.error('Error loading balance:', error);
+    }
 });
 </script>
 
@@ -280,7 +302,7 @@ onMounted(async () => {
                 </div>
 
                 <div class="history">
-                    <h3>Spin History</h3>
+                    <h3>Spin History (Persistent)</h3>
                     <div class="history-list">
                         <div
                             v-for="(item, index) in spinHistory"
@@ -310,6 +332,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Your existing CSS styles remain exactly the same */
 * {
     margin: 0;
     padding: 0;

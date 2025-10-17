@@ -12,19 +12,22 @@ const loading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 
+// Regex: minimum 8 characters, at least 1 uppercase, 1 lowercase, 1 number, 1 special character
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
 const register = async () => {
   // Reset messages
   errorMessage.value = '';
   successMessage.value = '';
-  
-  // Validation
+
+  // Frontend validation
   if (password.value !== password_confirmation.value) {
     errorMessage.value = 'Passwords do not match!';
     return;
   }
 
-  if (password.value.length < 6) {
-    errorMessage.value = 'Password must be at least 6 characters long!';
+  if (!passwordRegex.test(password.value)) {
+    errorMessage.value = 'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character!';
     return;
   }
 
@@ -38,40 +41,28 @@ const register = async () => {
       password_confirmation: password_confirmation.value
     });
 
-    console.log('Registration successful:', response.data);
     successMessage.value = 'Account created successfully!';
-    
-    // Redirect to gameview after 1.5 seconds
+
     setTimeout(() => {
       router.push('/gameview');
     }, 1500);
 
   } catch (error) {
-    console.error('Registration error:', error);
-    
-    if (error.response) {
-      // Server responded with error status
-      if (error.response.data.errors) {
-        // Laravel validation errors
-        const errors = error.response.data.errors;
-        errorMessage.value = Object.values(errors)[0][0];
-      } else if (error.response.data.message) {
-        errorMessage.value = error.response.data.message;
-      } else {
-        errorMessage.value = 'Registration failed. Please try again.';
-      }
-    } else if (error.request) {
-      // Network error
-      errorMessage.value = 'Network error. Please check your connection.';
+    if (error.response?.data?.errors) {
+      // Laravel validation errors
+      const errors = error.response.data.errors;
+      errorMessage.value = Object.values(errors)[0][0];
+    } else if (error.response?.data?.message) {
+      errorMessage.value = error.response.data.message;
     } else {
-      // Other errors
-      errorMessage.value = 'An unexpected error occurred.';
+      errorMessage.value = 'Registration failed. Please try again.';
     }
   } finally {
     loading.value = false;
   }
 };
 </script>
+
 
 <template>
   <div class="page">
