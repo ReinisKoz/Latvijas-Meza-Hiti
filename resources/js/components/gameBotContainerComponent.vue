@@ -8,7 +8,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 // timeline reactive copy
-const state = reactive({ ...timeline })
+const state = ref({ ...timeline })
 
 // animals loaded from backend
 const animals = ref([])

@@ -1,12 +1,12 @@
 <script setup>
-import { onMounted, reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { enableDragDrop } from '/resources/js/scripts.js'
 import { timeline } from '/resources/js/scripts.js'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const props = reactive({ ...timeline })
+const props = ref({ ...timeline })
 
 function goBack() {
   router.push('/loggedview')

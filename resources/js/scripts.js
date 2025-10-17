@@ -1,6 +1,7 @@
 // scripts.js
 import interact from 'interactjs'
 import { Howl } from 'howler'
+// import * as Tone from 'tone'
 import axios from 'axios'
 
 // --------------------------------------------------------------------
@@ -12,10 +13,10 @@ let dropzones = []                   // Cached dropzones
 export const animalPositions = {}    // Maps dropzone -> animal id
 
 export const timeline = {
-  cols: 5,
+  cols: 10,
   rows: 5,
   bpm: 60,
-  length: 5,
+  length: 10,
   volume: 1.0
 }
 
