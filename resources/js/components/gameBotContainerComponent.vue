@@ -8,7 +8,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 // timeline reactive copy
-const state = ref({ ...timeline })
+// const state = reactive({ ...timeline })
 
 // animals loaded from backend
 const animals = ref([])
@@ -30,7 +30,7 @@ onMounted(async () => {
   loadAnimalSounds()
   // const res = await axios.get('/api/animal')
   // animals.value = res.data
-  const res = await axios.get('/api/user/animals', { withCredentials: true })
+  const res = await axios.get('/api/animal', { withCredentials: true })
   animals.value = res.data
 
 })
@@ -46,9 +46,12 @@ watch(animals, (newVal) => {
 
 function play() {
   // loadAnimalSounds()
-  Howler.volume(state.volume)
+  // Howler.volume(state.volume)
+  // playAnimalBeat()
+  // console.log(state)
+  Howler.volume(timeline.volume)
   playAnimalBeat()
-  console.log(state)
+  console.log(timeline)
 }
 
 function stop() {
@@ -57,20 +60,18 @@ function stop() {
 
 // recalc cols on bpm/length change
 watch(
-  () => [state.bpm, state.length],
+  () => [timeline.bpm, timeline.length],
   ([newBpm, newLength]) => {
-    state.cols = Math.floor((newBpm / 60) * newLength)
-    timeline.cols = state.cols
+    timeline.cols = Math.ceil((newBpm / 60) * newLength)
     timeline.bpm = newBpm
     timeline.length = newLength
-    // updateAnimalPositions()
   },
   { immediate: true }
 )
 
 // sync volume
 watch(
-  () => state.volume,
+  () => timeline.volume,
   (newVol) => {
     timeline.volume = newVol
     Howler.volume(newVol)
@@ -101,34 +102,36 @@ watch(
       <div class="options">
         <label>
           🔊 Volume
-          <input type="range" min="0" max="1" step="0.05" v-model.number="state.volume">
+          <input type="range" min="0" max="1" step="0.05" v-model.number="timeline.volume">
         </label>
         <label>
           🎵 BPM
-          <input type="number" min="30" max="300" v-model.number="state.bpm">
+          <input type="number" min="30" max="300" v-model.number="timeline.bpm">
         </label>
         <label>
           ⏱️ Length (s)
-          <input type="number" min="2" max="32767" v-model.number="state.length">
+          <input type="number" min="2" max="32767" v-model.number="timeline.length">
         </label>
       </div>
     </div>
 
     <!-- ANIMAL DECK -->
     <div class="animal-deck" id="animal-deck">
+      
       <div
         v-for="animal in animals"
         :key="animal.id"
         class="animal-card"
         :id="animal.name.toLowerCase() + '-card'"
       >
+        <span>{{ animal.name }}</span>
         <img
           :id="animal.name.toLowerCase() + '-0'"
           :src="animal.image"
           :alt="animal.name"
           class="draggable animal"
         >
-        <span>{{ animal.name }}</span>
+        
       </div>
     </div>
   </div>
@@ -208,11 +211,14 @@ watch(
 /* ANIMAL DECK */
 .animal-deck {
   display: grid;
-  grid-auto-flow: column;      /* 🟢 Fill grid by columns, not rows */
-  grid-template-rows: repeat(2, 1fr); /* 🟢 Always 2 rows vertically */
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 1fr);
   gap: 16px;
-  align-content: start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
 }
+
 
 .animal-card {
   width: 120px;
@@ -234,7 +240,7 @@ watch(
 }
 
 .animal {
-  position: absolute;
+  position: relative;
   width: 80px;
   height: 80px;
   object-fit: contain;

@@ -3,6 +3,7 @@ import interact from 'interactjs'
 import { Howl } from 'howler'
 // import * as Tone from 'tone'
 import axios from 'axios'
+import { reactive } from 'vue'
 
 // --------------------------------------------------------------------
 // Global state
@@ -12,13 +13,13 @@ let dropzones = []                   // Cached dropzones
 
 export const animalPositions = {}    // Maps dropzone -> animal id
 
-export const timeline = {
+export const timeline = reactive({
   cols: 10,
   rows: 5,
   bpm: 60,
   length: 10,
   volume: 1.0
-}
+})
 
 export const animalSounds = {}
 const soundCounters = {}
@@ -180,13 +181,13 @@ export async function enableDragDrop() {
         }
 
         if (splitedId.number === 0) {
-          clone.style.position = 'absolute'
-          clone.style.transform = `translate(0px, 0px)`
+          clone.style.position = 'relative'
+          // clone.style.transform = `translate(0px, 0px)`
           clone.style.margin = 0
           clone.classList.add('draggable', 'animal')
           clone.id = splitedId.letters + '-0'
           original.id = splitedId.letters + '-' + String(++animalTypes[splitedId.letters])
-          document.getElementById(splitedId.letters + '-card').appendChild(clone)
+          
 
           const rect = original.getBoundingClientRect()
           document.body.appendChild(original)
@@ -196,6 +197,7 @@ export async function enableDragDrop() {
           original.setAttribute('data-x', 0)
           original.setAttribute('data-y', 0)
           original.style.transform = 'translate(0px, 0px)'
+          document.getElementById(splitedId.letters + '-card').appendChild(clone)
         }
       },
       move(event) {
