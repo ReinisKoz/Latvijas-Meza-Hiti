@@ -1,12 +1,79 @@
 <script setup>
 import { onMounted, reactive, ref, watch, nextTick } from 'vue'
 import axios from 'axios'
-import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds, animalPlayers } from '/resources/js/scripts.js'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds, animalPlayers, animalPositions, createAnimalClones } from '/resources/js/scripts.js'
 import { Howler } from 'howler'
-import { useRouter } from 'vue-router'
 import * as Tone from 'tone'
+import { useRouter, useRoute } from 'vue-router'
 
+
+
+const route = useRoute()
 const router = useRouter()
+const projectId = ref(route.params.id)
+const saveStatus = ref('')
+const projectData = ref({})
+
+// onMounted(async () => {
+//   const res = await axios.get(`/api/projects/${projectId.value}`, { withCredentials: true })
+//   projectData.value = res.data
+//   if (projectData.value.data) {
+//     Object.assign(timeline, projectData.value.data.timeline || {})
+//     Object.assign(animalPositions, projectData.value.data.positions || {})
+//   }
+// })
+
+// onMounted(async () => {
+//   const res = await axios.get(`/api/projects/${projectId.value}`, { withCredentials: true })
+//   projectData.value = res.data
+//   if (projectData.value.data) {
+//     Object.assign(timeline, projectData.value.data.timeline || {})
+//     Object.assign(animalPositions, projectData.value.data.positions || {})
+//   }
+//   // const res = await axios.get(`/api/project/${timeline.project_id}`)
+//   // const project = res.data
+//   // timeline.bpm = project.bpm
+//   // timeline.length = project.length
+//   // timeline.volume = project.volume
+//   const animalRes = await axios.get('/api/animal', { withCredentials: true })
+//   animals.value = animalRes.data
+//   // animals.value = project.animals // load base animal data
+//   // Object.assign(animalPositions, project.animal_positions) // in-memory positions
+
+//   await nextTick()
+//   await createAnimalClones()
+//   enableDragDrop()
+// })
+
+
+// 🧠 Save function
+async function saveProject() {
+  console.log("saving...")
+  try {
+    const payload = {
+      data: {
+        timeline: {
+          bpm: timeline.bpm,
+          length: timeline.length,
+          volume: timeline.volume,
+        },
+        positions: animalPositions
+      }
+    }
+    await axios.put(`/api/projects/${projectId.value}`, payload, { withCredentials: true })
+    saveStatus.value = '💾 Saved!'
+  } catch (err) {
+    saveStatus.value = '⚠️ Save failed'
+    console.error(err)
+  }
+}
+
+watch(
+  () => [timeline.bpm, timeline.length, timeline.volume, { ...animalPositions }],
+  saveProject,
+  { deep: true }
+)
+
 
 // timeline reactive copy
 // const state = reactive({ ...timeline })
@@ -27,23 +94,23 @@ function goToWheel() {
   router.push('/wheel') // adjust route if needed
 }
 
-onMounted(async () => {
-  loadAnimalSounds()
-  // const res = await axios.get('/api/animal')
-  // animals.value = res.data
-  const res = await axios.get('/api/animal', { withCredentials: true })
-  animals.value = res.data
+// onMounted(async () => {
+//   loadAnimalSounds()
+//   // const res = await axios.get('/api/animal')
+//   // animals.value = res.data
+//   const res = await axios.get('/api/animal', { withCredentials: true })
+//   animals.value = res.data
 
-})
+// })
 
 // Run drag-drop setup when animals change
-watch(animals, (newVal) => {
-  if (newVal.length > 0) {
-    nextTick(() => {
-      enableDragDrop()
-    })
-  }
-})
+// watch(animals, (newVal) => {
+//   if (newVal.length > 0) {
+//     nextTick(() => {
+//       enableDragDrop()
+//     })
+//   }
+// })
 
 function play() {
   // loadAnimalSounds()
@@ -185,9 +252,67 @@ async function instantDownload(cycles = 1) {
     rec.stop()
   }, totalMs)
 }
+
+// export function createAnimalClones() {
+//   Object.entries(animalPositions).forEach(([dropzoneId, animalId]) => {
+//     const dz = document.getElementById(dropzoneId)
+//     if (!dz) return
+
+
+    
+
+//     const baseId = animalId.split('-')[0] // "bird"
+//     const count = parseInt(animalId.split('-')[1]) || 0
+
+//     const clone = document.createElement('img')
+//     clone.id = `${baseId}-${count}`
+//     clone.classList.add('draggable', 'animal')
+//     // clone.src = `/images/${baseId}.png` // or from your animal data
+//     clone.alt = baseId
+//     clone.style.position = 'absolute'
+
+//     animals.forEach(element => {
+//       if (element.name == baseId){
+//         clone.src = element.image
+//       }
+//     });
+    
+    
+//     dz.appendChild(clone)
+//   })
+// }
+
+onMounted(async () => {
+  // Load project data
+  const res = await axios.get(`/api/projects/${projectId.value}`, { withCredentials: true })
+  projectData.value = res.data
+
+  if (projectData.value.data) {
+    Object.assign(timeline, projectData.value.data.timeline || {})
+    Object.assign(animalPositions, projectData.value.data.positions || {})
+  }
+
+  // Load animal data
+  const animalRes = await axios.get('/api/animal', { withCredentials: true })
+  animals.value = animalRes.data
+
+  // Load sounds
+  await loadAnimalSounds()
+
+  // Wait for DOM to render the dropzones and deck
+  await nextTick()
+
+  // Create clones *after everything else*
+  await createAnimalClones()
+
+  // Finally enable drag & drop
+  enableDragDrop()
+})
+
 </script>
 
 <template>
+  <!-- <span>{{ animalPositions }}</span> -->
   <div class="bottom-container">
     <div class="wheel-box">
       <h3>Get new animals</h3>
@@ -213,6 +338,12 @@ async function instantDownload(cycles = 1) {
           </select>
         </label>
       </div>
+      <!-- <div class="format-select">
+        <label>
+          Filename:
+          <input v-model="recordFormat"></input>
+        </label>
+      </div> -->
 
       <div class="record-controls">
         <button class="btn record-btn" @click="startRecording" :disabled="isRecording">

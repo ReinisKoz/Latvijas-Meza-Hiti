@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Animal;
+use App\Http\Controllers\ProjectController;
 
 Route::post('/register', [AuthController::class, 'register']);
 
@@ -15,6 +16,11 @@ Route::middleware(['web'])->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/authuser', [AuthController::class, 'authuser']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::post('/projects', [ProjectController::class, 'store']);
+    Route::get('/projects/{id}', [ProjectController::class, 'show']);
+    Route::put('/projects/{id}', [ProjectController::class, 'update']);
+    Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 });
 
 
@@ -50,4 +56,6 @@ Route::post('/redeem', [RedeemCodeController::class, 'redeem']);
 //         ]);
 //     });
 // });
+
+
 

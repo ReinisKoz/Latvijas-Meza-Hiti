@@ -6,73 +6,79 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const profileName = ref("");
-
-
-
-
-
 const userInitials = computed(() =>
-  profileName.value
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
+  profileName.value.split(" ").map((n) => n[0]).join("")
 );
 
 const showUploadModal = ref(false);
 const showMusicList = ref(false);
 
-const newMusic = ref({
-  title: "",
-  file: null,
-});
+const newMusic = ref({ title: "" });
+const myMusic = ref([]);
+
+// 🧩 Load user + their projects
 onMounted(async () => {
   try {
-  const response = await axios.get('/api/authuser');
-
-  if (response.data.isAuthenticated === true) {
-    profileName.value = response.data.user.name;
-  } else {
+    const response = await axios.get('/api/authuser', { withCredentials: true });
+    if (response.data.isAuthenticated) {
+      profileName.value = response.data.user.name;
+      await fetchProjects();
+    } else {
+      router.push('/');
+    }
+  } catch (error) {
+    console.error('auth error:', error);
     router.push('/');
   }
+});
 
-} catch (error) {
-  console.error('auth error:', error);
-  router.push('/');
+async function fetchProjects() {
+  try {
+    const res = await axios.get('/api/projects', { withCredentials: true });
+    myMusic.value = res.data.map(p => ({
+      id: p.id,
+      title: p.name,
+      date: new Date(p.created_at).toLocaleDateString()
+    }));
+  } catch (err) {
+    console.error("❌ Failed to load projects:", err);
+  }
 }
-})
+
+// 🟢 Create new project
+async function createProject() {
+  try {
+    console.log(newMusic.value.title);
+    const res = await axios.post(
+      '/api/projects',
+      { name: newMusic.value.title, data: {} },
+      { withCredentials: true }
+    );
+    console.log(res);
+    router.push(`/gameview/${res.data.id}`); // open the new project
+  } catch (err) {
+    console.error("❌ Failed to create project:", err);
+  }
+}
+
+function viewMyMusic() {
+  showMusicList.value = true;
+}
+
+function playMusic(project) {
+  router.push(`/gameview/${project.id}`);
+}
 
 const logout = async () => {
-
   try {
-    const response = await axios.post('/api/logout');
-
-    console.log('Logout successful:', response.data);
-    
-   
+    await axios.post('/api/logout');
     router.push('/');
-
   } catch (error) {
     console.error('logout error:', error);
-    
-  } 
+  }
 };
+</script>
 
-const myMusic = ref([
-  { id: 1, title: "Rīta saule", date: "2023-10-15" },
-  { id: 2, title: "Vakara vējš", date: "2023-09-22" },
-  { id: 3, title: "Pilsētas ritms", date: "2023-08-05" },
-]);
-
-
-
-const viewMyMusic = () => {
-  showMusicList.value = true;
-};
-
-const playMusic = (music) => {
-  alert(`Atskaņo: ${music.title}`);
-};
-</script>  
 
 <template>
   <div id="app">
@@ -111,7 +117,7 @@ const playMusic = (music) => {
             <div class="music-date">Pievienots: {{ music.date }}</div>
           </div>
           <button class="btn btn-secondary" @click="playMusic(music)">
-            ▶ Atskaņot
+            Edit
           </button>
         </div>
       </div>
@@ -136,9 +142,9 @@ const playMusic = (music) => {
           <button class="btn btn-secondary" @click="showUploadModal = false">
             Atcelt
           </button>
-          <router-link to="/gameview" class="btn btn-primary">
+          <button to="/gameview" class="btn btn-primary" @click="createProject">
             Izveidot
-          </router-link>
+          </button>
         </div>
       </div>
     </div>

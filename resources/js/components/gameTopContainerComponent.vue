@@ -30,7 +30,7 @@ function goBack() {
               v-for="n in timeline.rows"
               :key="n"
               class="dropzone"
-              :id="`dropzone-${(colIndex - 1) * timeline.cols + (n - 1)}`"
+              :id="`dropzone-${(colIndex - 1) * timeline.rows + (n - 1)}`"
             ></div>
           </div>
           <img src="/public/tree1.png" alt="" class="unselectable"/>

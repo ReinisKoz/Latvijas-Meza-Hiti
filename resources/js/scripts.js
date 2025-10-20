@@ -11,7 +11,7 @@ import { reactive, ref } from 'vue'
 let snapTargets = []                 // Dropzone snap positions
 let dropzones = []                   // Cached dropzones
 
-export const animalPositions = {}    // Maps dropzone -> animal id
+export const animalPositions = reactive({})    // Maps dropzone -> animal id
 
 export const timeline = reactive({
   cols: 10,
@@ -124,6 +124,73 @@ function detachListeners() {
     scrollContainer.removeEventListener('scroll', scrollHandler)
     scrollHandler = null
   }
+}
+
+// export function createAnimalClones() {
+//   Object.entries(animalPositions).forEach(([dropzoneId, animalId]) => {
+//     const dz = document.getElementById(dropzoneId)
+//     if (!dz) return
+    
+
+//     const baseId = animalId.split('-')[0] // "bird"
+//     const count = parseInt(animalId.split('-')[1]) || 0
+
+//     const clone = document.createElement('img')
+//     clone.id = `${baseId}-${count}`
+//     clone.classList.add('draggable', 'animal')
+//     clone.src = `/images/${baseId}.png` // or from your animal data
+//     clone.alt = baseId
+//     clone.style.position = 'absolute'
+    
+//     dz.appendChild(clone)
+//   })
+// }
+
+export async function createAnimalClones() {
+  const animalImages = {}
+  const res = await axios.get('/api/animal', { withCredentials: true })
+  // animals.value = res.data
+  console.log(res.data)
+  res.data.forEach(element => {
+      animalImages[element.name.toLowerCase()] = element.image;
+    });
+  console.log(animalImages)
+  Object.entries(animalPositions).forEach(([dropzoneId, animalId]) => {
+    const dz = document.getElementById(dropzoneId)
+    if (!dz) return
+
+    const baseId = animalId.split('-')[0] // "bird"
+    const count = parseInt(animalId.split('-')[1]) || 0
+
+    const clone = document.createElement('img')
+    clone.id = `${baseId}-${count}`
+    clone.classList.add('draggable', 'animal')
+    // clone.src = `/images/${baseId}.png` // or from your animal data
+    clone.src = animalImages[baseId]
+    clone.alt = baseId
+    clone.style.position = 'absolute'
+
+    Object.assign(clone.style, {
+      position: "relative",
+      width: "80px",
+      height: "80px",
+      objectFit: "contain",
+      cursor: "grab",
+      userSelect: "none",
+      zIndex: "5",
+      willChange: "transform",
+      margin: "0px"
+    })
+
+    // animals.forEach(element => {
+    //   if (element.name == baseId){
+    //     clone.src = element.image
+    //   }
+    // });
+    
+    
+    dz.appendChild(clone)
+  })
 }
 
 // --------------------------------------------------------------------
@@ -389,3 +456,4 @@ export async function playAnimalBeat() {
 
   Tone.Transport.start()
 }
+

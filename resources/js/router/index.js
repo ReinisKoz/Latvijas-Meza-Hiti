@@ -18,10 +18,11 @@ const routes = [
         name: "register",
         component: RegistrationView,
     },
-    {
-        path: "/gameview",
-        name: "gameview",
+        {
+        path: '/gameview/:id',      // dynamic route
+        name: 'GameView',
         component: gameView,
+        props: true                 // passes :id as a prop
     },
     {
         path: "/loggedview",
