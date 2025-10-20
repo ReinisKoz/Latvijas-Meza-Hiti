@@ -16,6 +16,10 @@ const showMusicList = ref(false);
 const newMusic = ref({ title: "" });
 const myMusic = ref([]);
 
+// 🔍 Search and Sort Controls
+const searchQuery = ref("");
+const sortOption = ref("modified"); // default sort
+
 // 🧩 Load user + their projects
 onMounted(async () => {
   try {
@@ -35,11 +39,14 @@ onMounted(async () => {
 async function fetchProjects() {
   try {
     const res = await axios.get('/api/projects', { withCredentials: true });
+    console.log(res.data)
     myMusic.value = res.data.map(p => ({
       id: p.id,
       title: p.name,
-      date: new Date(p.created_at).toLocaleDateString()
+      bpm: p.data.timeline.bpm, // || 120, // optional field for future
+      date: new Date(p.updated_at || p.created_at),
     }));
+    console.log(myMusic)
   } catch (err) {
     console.error("❌ Failed to load projects:", err);
   }
@@ -48,14 +55,12 @@ async function fetchProjects() {
 // 🟢 Create new project
 async function createProject() {
   try {
-    console.log(newMusic.value.title);
     const res = await axios.post(
       '/api/projects',
       { name: newMusic.value.title, data: {} },
       { withCredentials: true }
     );
-    console.log(res);
-    router.push(`/gameview/${res.data.id}`); // open the new project
+    router.push(`/gameview/${res.data.id}`);
   } catch (err) {
     console.error("❌ Failed to create project:", err);
   }
@@ -69,6 +74,29 @@ function playMusic(project) {
   router.push(`/gameview/${project.id}`);
 }
 
+// 🧭 Sorting + Filtering Logic
+const filteredAndSortedMusic = computed(() => {
+  // Filter by search
+  let filtered = myMusic.value.filter(m =>
+    m.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+
+  // Sort
+  switch (sortOption.value) {
+    case "name":
+      filtered.sort((a, b) => a.title.localeCompare(b.title));
+      break;
+    case "bpm":
+      filtered.sort((a, b) => (a.bpm || 0) - (b.bpm || 0));
+      break;
+    case "modified":
+      filtered.sort((a, b) => b.date - a.date);
+      break;
+  }
+
+  return filtered;
+});
+
 const logout = async () => {
   try {
     await axios.post('/api/logout');
@@ -78,7 +106,6 @@ const logout = async () => {
   }
 };
 </script>
-
 
 <template>
   <div id="app">
@@ -110,21 +137,45 @@ const logout = async () => {
 
     <div class="music-list" v-if="showMusicList">
       <h3 class="section-title">🎶 Mana mūzika</h3>
-      <div v-if="myMusic.length > 0">
-        <div class="music-item" v-for="(music, index) in myMusic" :key="index">
+
+      <!-- 🔍 Search + Sort Controls -->
+      <div class="music-controls">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="🔍 Meklēt pēc nosaukuma..."
+          class="search-input"
+        />
+        <select v-model="sortOption" class="sort-select">
+          <option value="modified">📅 Pēc datuma</option>
+          <option value="name">🔤 Pēc nosaukuma</option>
+          <option value="bpm">🎚️ Pēc BPM</option>
+        </select>
+      </div>
+
+      <div v-if="filteredAndSortedMusic.length > 0">
+        <div
+          class="music-item"
+          v-for="(music, index) in filteredAndSortedMusic"
+          :key="index"
+        >
           <div class="music-info">
             <div class="music-title">{{ music.title }}</div>
-            <div class="music-date">Pievienots: {{ music.date }}</div>
+            <div class="music-date">
+              BPM: {{ music.bpm }} | Pēdējoreiz: {{ music.date.toLocaleDateString() }}
+            </div>
           </div>
           <button class="btn btn-secondary" @click="playMusic(music)">
             Edit
           </button>
         </div>
       </div>
+
       <div class="empty-state" v-else>
         <p>Vēl nav pievienota neviena mūzikas kompozīcija</p>
       </div>
     </div>
+
 
     <div class="modal" v-if="showUploadModal">
       <div class="modal-content">
@@ -386,4 +437,32 @@ body::after {
   margin-top: 5px;
   font-size: 15px;
 }
+
+.music-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  font-size: 15px;
+}
+
+.sort-select {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #ffcc00;
+  color: #333;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 </style>
