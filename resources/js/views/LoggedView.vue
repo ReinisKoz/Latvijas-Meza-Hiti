@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from "vue";
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 
+const renameTarget = ref(null);
+const renameTitle = ref("");
 const router = useRouter();
 
 const profileName = ref("");
@@ -12,6 +14,7 @@ const userInitials = computed(() =>
 
 const showUploadModal = ref(false);
 const showMusicList = ref(false);
+const showRenameModal = ref(false);
 
 const newMusic = ref({ title: "" });
 const myMusic = ref([]);
@@ -43,7 +46,7 @@ async function fetchProjects() {
     myMusic.value = res.data.map(p => ({
       id: p.id,
       title: p.name,
-      bpm: p.data.timeline.bpm, // || 120, // optional field for future
+      bpm: p.data.timeline.bpm || 120, // optional field for future
       date: new Date(p.updated_at || p.created_at),
     }));
     console.log(myMusic)
@@ -105,6 +108,64 @@ const logout = async () => {
     console.error('logout error:', error);
   }
 };
+// ✏️ Rename project
+function openRenameModal(project) {
+  renameTarget.value = project;
+  renameTitle.value = project.title;
+  showRenameModal.value = true;
+}
+
+async function renameProject() {
+  try {
+    await axios.put(`/api/projects/${renameTarget.value.id}`, { name: renameTitle.value });
+    showRenameModal.value = false;
+    await fetchProjects();
+  } catch (err) {
+    console.error("❌ Rename failed:", err);
+  }
+}
+
+// 📄 Duplicate project
+async function duplicateProject(project) {
+  try {
+    const newName = prompt("Jaunais nosaukums:", `${project.title} (1)`);
+    if (!newName) return;
+
+    const fullRes = await axios.get(`/api/projects/${project.id}`);
+    const fullProject = fullRes.data;
+
+    const res = await axios.post(
+      '/api/projects',
+      {
+        name: newName,
+        data: fullProject.data || {},
+      },
+      { withCredentials: true }
+    );
+
+    const newId = res.data.id; // Laravel should return the new ID
+    await fetchProjects();
+
+    // ✅ Redirect user to the new beat editor
+    router.push(`/gameview/${newId}`);
+  } catch (err) {
+    console.error("❌ Duplicate failed:", err);
+  }
+}
+
+
+// 🗑 Delete project
+async function deleteProject(project) {
+  if (!confirm(`Vai tiešām dzēst "${project.title}"?`)) return;
+  try {
+    await axios.delete(`/api/projects/${project.id}`);
+    await fetchProjects();
+  } catch (err) {
+    console.error("❌ Delete failed:", err);
+  }
+}
+
+
 </script>
 
 <template>
@@ -165,14 +226,42 @@ const logout = async () => {
               BPM: {{ music.bpm }} | Pēdējoreiz: {{ music.date.toLocaleDateString() }}
             </div>
           </div>
-          <button class="btn btn-secondary" @click="playMusic(music)">
-            Edit
-          </button>
+
+          <div class="actions">
+            <button class="btn btn-secondary" @click="playMusic(music)">Turpināt darbu</button>
+            <button class="btn btn-secondary" @click="openRenameModal(music)">Pārsaukt</button>
+            <button class="btn btn-secondary" @click="duplicateProject(music)">Klonēt</button>
+            <button class="btn btn-danger" @click="deleteProject(music)">Dzēst</button>
+          </div>
         </div>
       </div>
 
       <div class="empty-state" v-else>
         <p>Vēl nav pievienota neviena mūzikas kompozīcija</p>
+      </div>
+    </div>
+
+    <!-- ✏️ Rename Modal -->
+    <div class="modal" v-if="showRenameModal">
+      <div class="modal-content">
+        <h3 class="modal-title">Pārsaukt "{{ renameTarget?.title }}"</h3>
+        <div class="form-group">
+          <label class="form-label">Jaunais nosaukums</label>
+          <input
+            type="text"
+            class="form-input"
+            v-model="renameTitle"
+            placeholder="Ievadi jauno nosaukumu"
+          />
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" @click="showRenameModal = false">
+            Atcelt
+          </button>
+          <button class="btn btn-primary" @click="renameProject">
+            Saglabāt
+          </button>
+        </div>
       </div>
     </div>
 
@@ -463,6 +552,20 @@ body::after {
   color: #333;
   font-weight: 600;
   cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-danger {
+  background: #ff4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dd2222;
 }
 
 </style>

@@ -32,9 +32,20 @@ class ProjectController extends Controller
     public function update(Request $request, $id)
     {
         $project = Project::where('user_id', Auth::id())->findOrFail($id);
-        $project->update(['data' => $request->data]);
-        return response()->json(['message' => 'Project updated']);
+
+        // Only update fields that were actually sent
+        $data = $request->only(['name', 'bpm', 'data']);
+
+        // Preserve existing data if not provided
+        if (!isset($data['data'])) {
+            $data['data'] = $project->data;
+        }
+
+        $project->update($data);
+
+        return response()->json($project);
     }
+
 
     public function destroy($id)
     {
