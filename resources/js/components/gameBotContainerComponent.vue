@@ -1,9 +1,10 @@
 <script setup>
 import { onMounted, reactive, ref, watch, nextTick } from 'vue'
 import axios from 'axios'
-import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds } from '/resources/js/scripts.js'
+import { enableDragDrop, playAnimalBeat, stopAnimalBeat, timeline, loadAnimalSounds, animalPlayers } from '/resources/js/scripts.js'
 import { Howler } from 'howler'
 import { useRouter } from 'vue-router'
+import * as Tone from 'tone'
 
 const router = useRouter()
 
@@ -73,10 +74,117 @@ watch(
 watch(
   () => timeline.volume,
   (newVol) => {
-    timeline.volume = newVol
-    Howler.volume(newVol)
+    const db = Tone.gainToDb(newVol)
+    for (const pool of Object.values(animalPlayers)) {
+      if (Array.isArray(pool)) {
+        pool.forEach(player => {
+          if (player && player.volume) player.volume.value = db
+        })
+      } else if (pool && pool.volume) {
+        pool.volume.value = db
+      }
+    }
   }
 )
+
+const isRecording = ref(false)
+const recordFormat = ref('wav')
+let recorder = null
+let recordedChunks = []
+
+// Utility: Connect all Tone.js outputs to recorder
+function connectRecorder() {
+  const dest = Tone.context.createMediaStreamDestination()
+  for (const pool of Object.values(animalPlayers)) {
+    const players = Array.isArray(pool) ? pool : [pool]
+    for (const player of players) {
+      if (player && player.output) player.connect(dest)
+    }
+  }
+  return dest
+}
+
+async function startRecording() {
+  if (isRecording.value) return
+  await Tone.start()
+
+  const dest = connectRecorder()
+  recordedChunks = []
+  let mimeType = 'audio/webm'
+  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+    mimeType = 'audio/webm;codecs=opus'
+  } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+    mimeType = 'audio/ogg;codecs=opus'
+  }
+
+  recorder = new MediaRecorder(dest.stream, { mimeType })
+
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data)
+  }
+
+  recorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: recorder.mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `animal-beat.${recordFormat.value}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    isRecording.value = false
+  }
+
+  recorder.start()
+  isRecording.value = true
+  console.log(`🎙️ Recording started (${recordFormat.value.toUpperCase()})`)
+}
+
+function stopRecording() {
+  if (recorder && isRecording.value) {
+    stopAnimalBeat()
+    recorder.stop()
+    console.log('🛑 Recording stopped')
+  }
+}
+
+async function instantDownload(cycles = 1) {
+  await Tone.start()
+  const dest = connectRecorder()
+
+  const chunks = []
+  // const mime = recordFormat.value === 'mp3' ? 'audio/mpeg' : 'audio/wav'
+  // const rec = new MediaRecorder(dest.stream, { mimeType: mime })
+  recordedChunks = []
+  let mimeType = 'audio/webm'
+  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+    mimeType = 'audio/webm;codecs=opus'
+  } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+    mimeType = 'audio/ogg;codecs=opus'
+  }
+  rec = new MediaRecorder(dest.stream, { mimeType })
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+  rec.onstop = () => {
+    const blob = new Blob(chunks, { type: mime })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `animal-beat.${recordFormat.value}`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  rec.start()
+  playAnimalBeat()
+
+  // Stop after the beat cycles finish
+  const totalMs = timeline.length * 1000 * cycles
+  setTimeout(() => {
+    stopAnimalBeat()
+    rec.stop()
+  }, totalMs)
+}
 </script>
 
 <template>
@@ -92,11 +200,43 @@ watch(
         Spin the Wheel
       </button>
     </div>
+    <!-- 🎧 RECORDING BOX -->
+    <div class="record-box">
+      <h3>🎙️ Recording Studio</h3>
+
+      <div class="format-select">
+        <label>
+          Format:
+          <select v-model="recordFormat">
+            <option value="wav">WAV</option>
+            <option value="mp3">MP3</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="record-controls">
+        <button class="btn record-btn" @click="startRecording" :disabled="isRecording">
+          🔴 Start Recording
+        </button>
+        <button class="btn stop-record-btn" @click="stopRecording" :disabled="!isRecording">
+          ⏹️ Stop Recording
+        </button>
+        <!-- <button class="btn instant-btn" @click="instantDownload(1)">
+          ⚡ Instant Download Beat
+        </button>
+        <button class="btn instant-btn" @click="instantDownload(2)">
+          ⏱️ 2 Cycles
+        </button> -->
+      </div>
+    </div>
     <!-- SONG OPTIONS BOX -->
     <div class="options-box">
       <div class="controls">
         <button class="btn play-btn" @click="play">▶ Play</button>
         <button class="btn stop-btn" @click="stop">■ Stop</button>
+        <!-- <button class="btn download-btn" @click="downloadBeat" :disabled="isRecording">
+          💾 Download
+        </button> -->
       </div>
 
       <div class="options">
@@ -300,4 +440,51 @@ watch(
 .wheel-btn:hover {
   transform: scale(1.05);
 }
+
+/* 🎙️ RECORD BOX */
+.record-box {
+  background: #fde68a;
+  border: 3px solid #facc15;
+  border-radius: 16px;
+  padding: 16px 20px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.record-box h3 {
+  color: #854d0e;
+  text-align: center;
+  font-weight: bold;
+}
+
+.record-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.format-select select {
+  margin-left: 6px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 2px solid #facc15;
+}
+
+.record-btn {
+  background: linear-gradient(135deg, #f87171, #dc2626);
+}
+
+.stop-record-btn {
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+}
+
+.instant-btn {
+  background: linear-gradient(135deg, #34d399, #059669);
+}
+
 </style>

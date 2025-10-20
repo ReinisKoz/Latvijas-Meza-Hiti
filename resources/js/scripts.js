@@ -1,9 +1,9 @@
 // scripts.js
 import interact from 'interactjs'
 import { Howl } from 'howler'
-// import * as Tone from 'tone'
+import * as Tone from 'tone'
 import axios from 'axios'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 // --------------------------------------------------------------------
 // Global state
@@ -259,119 +259,133 @@ export async function enableDragDrop() {
 // --------------------------------------------------------------------
 // Sound loading
 // --------------------------------------------------------------------
+export const animalPlayers = {}
+const playerIndices = {}
+
 export async function loadAnimalSounds(apiPath = '/api/animal') {
-  try {
-    const res = await axios.get(apiPath)
-    const list = res.data || []
-    const loadPromises = []
+  const res = await axios.get(apiPath)
+  const list = res.data || []
 
-    for (const k in animalSounds) delete animalSounds[k]
-    for (const k in soundCounters) delete soundCounters[k]
-    soundsLoaded = false
+  for (const item of list) {
+    const name = (item.nosaukums || item.name || 'unknown').toLowerCase()
+    const audioUrl = item.audio || item.sound || item.audio_url
 
-    list.forEach(item => {
-      const rawName = item.nosaukums ?? item.name ?? item.nosaukums_lv ?? 'unknown'
-      const key = String(rawName).toLowerCase().trim().replace(/\s+/g, '-')
-      const audioField = item.audio ?? item.sound ?? item.audio_path ?? item.audio_url
-      if (!audioField) return
-      const audioUrl = normalizeAudioUrl(audioField)
-
-      const howl = new Howl({
-        src: [audioUrl],
-        volume: 1.0,
-        html5: true,
-        preload: true
-      })
-
-      if (!animalSounds[key]) animalSounds[key] = []
-      animalSounds[key].push(howl)
-      soundCounters[key] = 0
-
-      loadPromises.push(new Promise(resolve => {
-        howl.once('load', () => resolve({ key, url: audioUrl, success: true }))
-        howl.once('loaderror', () => resolve({ key, url: audioUrl, success: false }))
-      }))
-    })
-
-    await Promise.all(loadPromises)
-    soundsLoaded = true
-    return { success: true, count: Object.keys(animalSounds).length }
-  } catch (err) {
-    return { success: false, error: err }
+    // preload 4 polyphonic players
+    animalPlayers[name] = Array.from({ length: 4 }, () =>
+      new Tone.Player(audioUrl).toDestination()
+    )
+    playerIndices[name] = 0
   }
-}
 
-function getHowlFor(typeKey) {
-  const arr = animalSounds[typeKey]
-  if (!arr || arr.length === 0) return null
-  if (arr.length === 1) return arr[0]
-  const idx = soundCounters[typeKey] % arr.length
-  soundCounters[typeKey] = idx + 1
-  return arr[idx]
+  console.log('✅ Loaded', Object.keys(animalPlayers).length, 'animal sounds')
 }
 
 // --------------------------------------------------------------------
 // Beat loop
 // --------------------------------------------------------------------
-let intervalId = null
+let toneLoop = null
 
 export function stopAnimalBeat() {
-  if (intervalId) {
-    clearInterval(intervalId)
-    intervalId = null
+  if (toneLoop) {
+    toneLoop.stop()
+    toneLoop = null
   }
+  Tone.Transport.stop()
 }
 
-export function playAnimalBeat() {
+const isRecording = ref(false)
+let recorder = null
+let recordedChunks = []
+
+// async function downloadBeat() {
+//   if (isRecording.value) return
+
+//   isRecording.value = true
+//   recordedChunks = []
+
+//   await Tone.start() // ensure AudioContext is running
+
+//   // Route all sounds through a recorder
+//   const dest = Tone.context.createMediaStreamDestination()
+//   for (const pool of Object.values(animalPlayers)) {
+//     const players = Array.isArray(pool) ? pool : [pool]
+//     players.forEach(player => {
+//       if (player && player.output) player.connect(dest)
+//     })
+//   }
+
+//   // Create a MediaRecorder from that destination
+//   recorder = new MediaRecorder(dest.stream)
+//   recorder.ondataavailable = (e) => {
+//     if (e.data.size > 0) recordedChunks.push(e.data)
+//   }
+
+//   recorder.onstop = () => {
+//     const blob = new Blob(recordedChunks, { type: 'audio/wav' })
+//     const url = URL.createObjectURL(blob)
+//     const a = document.createElement('a')
+//     a.href = url
+//     a.download = 'animal-beat.wav'
+//     document.body.appendChild(a)
+//     a.click()
+//     document.body.removeChild(a)
+//     URL.revokeObjectURL(url)
+//     isRecording.value = false
+//   }
+
+//   recorder.start()
+
+//   // Play the beat
+//   playAnimalBeat()
+
+//   // Stop after timeline.length seconds
+//   setTimeout(() => {
+//     stopAnimalBeat()
+//     recorder.stop()
+//   }, timeline.length * 1000)
+// }
+
+export async function playAnimalBeat() {
   stopAnimalBeat()
-  if (!soundsLoaded) return
-  if (!animalPositions || Object.keys(animalPositions).length === 0) return
+  if (Object.keys(animalPlayers).length === 0) return
 
-  const animals = Object.keys(animalSounds)
-  if (animals.length === 0) return
-
-  const beatPattern = Array.from({ length: animals.length }, () => Array(timeline.cols).fill(0))
+  const beatPattern = Array.from({ length: Object.keys(animalPlayers).length }, () =>
+    Array(timeline.cols).fill(0)
+  )
 
   Object.keys(animalPositions).forEach(pos => {
     const animalId = animalPositions[pos]
     const { row, col } = splitDropZonelId(pos)
     const type = splitAnimalId(animalId)?.letters
-    if (!type) return
-    const key = String(type).toLowerCase()
-    const idx = animals.indexOf(key)
-    if (idx >= 0 && col >= 0 && col < timeline.cols) {
-      beatPattern[idx][col] = 1
-    }
+    const key = type.toLowerCase()
+    const idx = Object.keys(animalPlayers).indexOf(key)
+    if (idx >= 0 && col < timeline.cols) beatPattern[idx][col] = 1
   })
 
-  const hasNote = beatPattern.some(r => r.some(cell => cell === 1))
-  if (!hasNote) return
+  const animals = Object.keys(animalPlayers)
+  const stepLength = 60 / timeline.bpm
+
+  await Tone.start()
+  Tone.Transport.bpm.value = timeline.bpm
 
   let step = 0
-  const msPerBeat = (60 / timeline.bpm) * 1000
-  const totalSteps = Math.max(1, timeline.cols)
+  toneLoop = new Tone.Loop((time) => {
+    animals.forEach((key, i) => {
+      if (beatPattern[i][step]) {
+        const pool = animalPlayers[key]
+        const idx = playerIndices[key]
+        const player = pool[idx]
 
-  intervalId = setInterval(() => {
-    beatPattern.forEach((row, i) => {
-      if (row[step]) {
-        const typeKey = animals[i]
-        const howl = getHowlFor(typeKey)
-        if (howl) {
-          howl.volume(timeline.volume ?? 1.0)
-          howl.play()
+        if (player && player.buffer.loaded) {
+          player.start(time)
+          player.volume.value = Tone.gainToDb(timeline.volume)
         }
+
+        playerIndices[key] = (idx + 1) % pool.length
       }
     })
-    step = (step + 1) % totalSteps
-  }, msPerBeat)
-}
+    step = (step + 1) % timeline.cols
+  }, stepLength).start(0)
 
-// --------------------------------------------------------------------
-// HMR cleanup
-// --------------------------------------------------------------------
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    window._animalDragInitialized = false
-    detachListeners()
-  })
+  Tone.Transport.start()
 }
