@@ -68,11 +68,19 @@ class AnimalController extends Controller
 
     public function userAnimals(Request $request)
     {
-        // $user = auth()->user();
+        $user = auth()->user();
 
-        $animals = Animal::where('is_default', true)->get();
-            // ->orWhereHas('users', fn($q) => $q->where('users.id', $user->id))
-            // ->get();
+        $animals = Animal::where('is_unlockable', false)
+            ->orWhereHas('users', fn($q) => $q->where('users.id', $user->id))
+            ->get();
+
+        $animals = $animals->map(function ($animal) {
+            return [
+                'name'  => $animal->nosaukums,
+                'sound' => asset('storage/' . $animal->audio),
+                'image' => asset('storage/' . $animal->bilde),
+            ];
+        });
 
         return response()->json($animals);
     }
