@@ -83,4 +83,42 @@ class AnimalController extends Controller
         return response()->json($animals);
     }
 
+    public function update(Request $request, $id)
+{
+    $dzivnieks = Animal::findOrFail($id);
+
+    $validated = $request->validate([
+        'nosaukums' => 'required|string|max:255',
+        'bilde' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'audio' => 'nullable|mimes:mp3,wav,ogg|max:10240',
+    ]);
+
+    // Ja ir jauna bilde — izdzēš veco un saglabā jauno
+    if ($request->hasFile('bilde')) {
+        if ($dzivnieks->bilde) {
+            Storage::disk('public')->delete($dzivnieks->bilde);
+        }
+        $bildePath = $request->file('bilde')->store('dzivnieki/bildes', 'public');
+        $dzivnieks->bilde = $bildePath;
+    }
+
+    // Ja ir jauns audio — izdzēš veco un saglabā jauno
+    if ($request->hasFile('audio')) {
+        if ($dzivnieks->audio) {
+            Storage::disk('public')->delete($dzivnieks->audio);
+        }
+        $audioPath = $request->file('audio')->store('dzivnieki/audio', 'public');
+        $dzivnieks->audio = $audioPath;
+    }
+
+    // Atjaunina nosaukumu
+    $dzivnieks->nosaukums = $validated['nosaukums'];
+    $dzivnieks->save();
+
+    return response()->json([
+        'message' => 'Dzīvnieks veiksmīgi atjaunināts!',
+        'dzivnieks' => $dzivnieks
+    ]);
+}
+
 }
