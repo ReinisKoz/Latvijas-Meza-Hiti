@@ -148,7 +148,7 @@ function detachListeners() {
 
 export async function createAnimalClones() {
   const animalImages = {}
-  const res = await axios.get('/api/animal', { withCredentials: true })
+  const res = await axios.get('/api/user-animals', { withCredentials: true })
   // animals.value = res.data
   console.log(res.data)
   res.data.forEach(element => {
