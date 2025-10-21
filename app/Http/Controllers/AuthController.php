@@ -124,4 +124,15 @@ class AuthController extends Controller
             'message' => 'Logged out successfully'
         ]);
     }
+
+    public function balance(Request $request)
+    {
+        $user = auth()->user(); // works with "web" guard
+
+        if (!$user) {
+            return response()->json(['message' => 'Not authenticated'], 401);
+        }
+
+        return response()->json(['balance' => $user->balance]);
+    }
 }

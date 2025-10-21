@@ -293,7 +293,7 @@ onMounted(async () => {
   }
 
   // Load animal data
-  const animalRes = await axios.get('/api/animal', { withCredentials: true })
+  const animalRes = await axios.get('/api/user-animals', { withCredentials: true })
   animals.value = animalRes.data
 
   // Load sounds

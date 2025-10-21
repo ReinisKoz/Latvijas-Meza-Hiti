@@ -68,7 +68,12 @@ class AnimalController extends Controller
 
     public function userAnimals(Request $request)
     {
+        // $user = auth()->user();
+
         $animals = Animal::where('is_default', true)->get();
+            // ->orWhereHas('users', fn($q) => $q->where('users.id', $user->id))
+            // ->get();
+
         return response()->json($animals);
     }
 

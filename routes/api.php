@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Animal;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\WheelController;
 
 Route::post('/register', [AuthController::class, 'register']);
 
@@ -21,6 +22,11 @@ Route::middleware(['web'])->group(function () {
     Route::get('/projects/{id}', [ProjectController::class, 'show']);
     Route::put('/projects/{id}', [ProjectController::class, 'update']);
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
+    Route::get('/animals/unlockable', [WheelController::class, 'unlockableAnimals']);
+    Route::post('/unlock-animal', [WheelController::class, 'unlockAnimal']);
+    Route::post('/balance/update', [WheelController::class, 'updateBalance']);
+    Route::get('/balance', [AuthController::class, 'balance']);
+    Route::get('/user-animals', [AnimalController::class, 'userAnimals']);
 });
 
 

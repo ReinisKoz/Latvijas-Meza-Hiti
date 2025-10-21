@@ -1,6 +1,13 @@
 <!-- WheelOfFortune.vue -->
 <script setup>
+import axios from "axios";
+import { useRouter } from "vue-router";
 import { ref, computed, onMounted, watch } from "vue";
+
+const router = useRouter();
+const unlockableAnimals = ref([])
+const wheelSegments = ref([])
+
 
 const segments = [
     "100",
@@ -53,49 +60,78 @@ watch(spinHistory, (newHistory) => {
     localStorage.setItem('wheelSpinHistory', JSON.stringify(newHistory));
 }, { deep: true });
 
-function spinWheel() {
-    if (isSpinning.value) return;
+async function spinWheel() {
+  if (isSpinning.value) return;
+  if (balance.value < 100) {
+    message.value = "❌ Not enough coins to spin!";
+    setTimeout(() => (message.value = ""), 3000);
+    return;
+  }
 
-    isSpinning.value = true;
-    currentSegment.value = "";
+  // Subtract spin cost and sync with backend
+  balance.value -= 100;
+  await updateBalance(-100);
 
-    // 5-7 full spins + random angle for more dramatic effect
-    const fullSpins = 5 + Math.floor(Math.random() * 3);
-    const randomAngle = 360 * fullSpins + Math.floor(Math.random() * 360);
-    angle += randomAngle;
+  isSpinning.value = true;
+  currentSegment.value = "";
 
-    // Play spin sound if enabled
-    if (soundEnabled.value) {
-        playSpinSound();
+  const fullSpins = 5 + Math.floor(Math.random() * 3);
+  const randomAngle = 360 * fullSpins + Math.floor(Math.random() * 360);
+  angle += randomAngle;
+
+  if (soundEnabled.value) playSpinSound();
+  console.log('Wheel segments:', wheelSegments.value);
+
+
+  setTimeout(async () => {
+    const segmentSize = 360 / wheelSegments.value.length;
+    const normalizedAngle = angle % 360;
+    const pointerAngle = (360 - normalizedAngle + segmentSize / 2) % 360;
+    const index = Math.floor(pointerAngle / segmentSize);
+    const result = wheelSegments.value[index];
+    console.log(pointerAngle / segmentSize)
+    console.log(index)
+
+    const wheelEl = document.querySelector('.wheel');
+    wheelEl.style.transform = `rotate(${angle}deg)`;
+
+    currentSegment.value = result;
+
+    // If user lands on money
+    if (result.type === 'money') {
+        balance.value += result.amount;
+        await updateBalance(result.amount);
+        message.value = `💰 You won ${result.amount} coins!`;
+    } else if (result.type === 'animal') {
+        await unlockAnimal(result.label);
+        message.value = `🎉 You unlocked ${result.label}!`;
+    } else if (result.label === 'Bankrupt') {
+        balance.value = 0;
+        await updateBalance("reset");
+        message.value = "💸 Bankrupt!";
+    }
+    // If user lands on unlockable animal
+    // else if (unlockableAnimals.value.find(a => a.name === result)) {
+    //   await unlockAnimal(result);
+    //   message.value = `🎉 You unlocked a new animal: ${result}!`;
+    // }
+    // If bankrupt
+    else if (result === "Bankrupt") {
+      balance.value = 0;
+      await updateBalance("reset");
     }
 
-    setTimeout(() => {
-        const segmentSize = 360 / segments.length;
+    spinHistory.value.unshift({
+      segment: result,
+      timestamp: new Date().toLocaleTimeString(),
+      date: new Date().toLocaleDateString(),
+    });
 
-        // Normalize the angle to be between 0 and 360
-        const normalizedAngle = angle % 360;
-
-        // Calculate which segment is under the pointer (at top, 0 degrees)
-        const pointerAngle = (360 - normalizedAngle) % 360;
-
-        // Find the segment index based on pointer position
-        const index = Math.floor(pointerAngle / segmentSize);
-
-        currentSegment.value = segments[index];
-        spinHistory.value.unshift({
-            segment: segments[index],
-            timestamp: new Date().toLocaleTimeString(),
-            date: new Date().toLocaleDateString() // Add date for better tracking
-        });
-
-        isSpinning.value = false;
-
-        // Play result sound if enabled
-        if (soundEnabled.value) {
-            playResultSound(segments[index]);
-        }
-    }, 4000);
+    isSpinning.value = false;
+    if (soundEnabled.value) playResultSound(result);
+  }, 4000);
 }
+
 
 function playSpinSound() {
     // In a real app, you would play an actual sound file
@@ -118,8 +154,12 @@ function resetGame() {
     // localStorage will be automatically updated by the watcher
 }
 
-function goHome() {
-    router.push("/gameview");
+function goBack() {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    router.push("/loggedview"); // fallback route
+  }
 }
 
 async function redeemGiftCode() {
@@ -152,6 +192,23 @@ async function redeemGiftCode() {
 }
 
 const balance = ref(0);
+// const unlockableAnimals = ref([]);
+
+// async function loadBalance() {
+//     try {
+//         const res = await axios.get("/api/balance", {
+//             headers: {
+//                 Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+//             },
+//         });
+//         console.log("balance")
+//         console.log(res.data)
+//         balance.value = res.data.balance;
+//         console.log(balance)
+//     } catch (error) {
+//         console.error('Error loading balance:', error);
+//     }
+// }
 
 onMounted(async () => {
     // Load spin history from localStorage
@@ -167,16 +224,119 @@ onMounted(async () => {
 
     // Load balance
     try {
-        const res = await axios.get("/api/balance", {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-            },
-        });
-        balance.value = res.data.balance;
+        const res = await axios.get("/api/balance");
+
+        console.log("balance")
+        console.log(res.data)
+        balance.value = parseFloat(res.data.balance);
+        console.log(balance)
     } catch (error) {
         console.error('Error loading balance:', error);
     }
+
+    // Load animals
+    try {
+        const res = await axios.get("/api/animals/unlockable", {
+        withCredentials: true
+        });
+        unlockableAnimals.value = res.data; // Example: [{ name: "Owl", id: 3 }, ...]
+        // Replace some wheel segments with animal names:
+        console.log(unlockableAnimals.value); // see what you got
+        injectAnimalsIntoWheel();
+    } catch (err) {
+        console.error("Error fetching unlockable animals:", err);
+    }
+    await loadUnlockableAnimals()
+    setupWheel()
 });
+async function loadUnlockableAnimals() {
+  try {
+    const res = await axios.get('/api/animals/unlockable', { withCredentials: true })
+    unlockableAnimals.value = res.data
+    console.log('Unlockable animals:', unlockableAnimals.value)
+  } catch (err) {
+    console.error('Failed to load unlockable animals:', err)
+  }
+}
+function setupWheel() {
+  const moneySegments = [
+    { label: "100", type: "money", amount: 100 },
+    { label: "200", type: "money", amount: 200 },
+    { label: "300", type: "money", amount: 300 },
+    { label: "500", type: "money", amount: 500 },
+    { label: "Bankrupt", type: "special" },
+    { label: "Lose a Turn", type: "special" },
+  ];
+
+  const combined = [];
+  const shuffledAnimals = [...unlockableAnimals.value].sort(() => Math.random() - 0.5);
+
+  for (let i = 0; i < 12; i++) {
+    if (i % 3 === 0 && shuffledAnimals.length) {
+      const animal = shuffledAnimals.pop();
+      combined.push({
+        label: animal.nosaukums || animal.name,
+        image: animal.bilde ? `/storage/${animal.bilde}` : null,
+        type: "animal",
+        id: animal.id,
+      });
+      console.log(combined)
+    } else {
+      const money = moneySegments[Math.floor(Math.random() * moneySegments.length)];
+      combined.push({ ...money }); // clone to avoid mutation
+    }
+    
+  }
+  console.log(combined)
+  wheelSegments.value = combined;
+}
+
+
+function injectAnimalsIntoWheel() {
+  // Pick up to 3 random wheel spots for animals
+  const availableIndexes = [...Array(segments.length).keys()];
+  const randomIndexes = [];
+
+  while (randomIndexes.length < Math.min(3, unlockableAnimals.value.length)) {
+    const rand = availableIndexes.splice(
+      Math.floor(Math.random() * availableIndexes.length),
+      1
+    )[0];
+    randomIndexes.push(rand);
+  }
+
+  randomIndexes.forEach((i, idx) => {
+    segments[i] = unlockableAnimals.value[idx]?.name || "100";
+  });
+}
+async function updateBalance(change) {
+    
+  try {
+    console.log("balance update")
+    console.log(change)
+    await axios.post(
+      "/api/balance/update",
+      { change },
+      { withCredentials: true }
+    );
+  } catch (err) {
+    console.error("Failed to update balance:", err);
+  }
+}
+
+async function unlockAnimal(name) {
+  try {
+    await axios.post(
+      "/api/unlock-animal",
+      { name },
+      { withCredentials: true }
+    );
+  } catch (err) {
+    console.error("Failed to unlock animal:", err);
+  }
+}
+
+
 </script>
 
 <template>
@@ -190,7 +350,7 @@ onMounted(async () => {
         <div class="bird" style="top: 70%; animation-delay: 10s">🐤</div>
 
         <!-- Home Button -->
-        <button class="home-btn" @click="goHome">
+        <button class="home-btn" @click="goBack">
             <i class="fas fa-home"></i> To game
         </button>
 
@@ -200,28 +360,42 @@ onMounted(async () => {
                 <p>Spin the wheel and test your luck!</p>
             </div>
 
+            <div class="balance-bar">
+            💰 Your Balance: <strong>{{ balance.toFixed(2) }}</strong> coins
+            </div>
+
             <div class="wheel-container">
                 <div class="wheel-wrapper">
                     <div
                         class="wheel"
-                        :style="{ transform: `rotate(${angle}deg)` }"
-                    >
+                        :style="{
+                            transform: `rotate(${angle}deg)`,
+                        }"
+                        >
                         <div
-                            v-for="(segment, index) in segments"
-                            :key="index"
+                            v-for="(segment, i) in wheelSegments"
+                            :key="i"
                             class="segment"
                             :style="{
-                                transform: `rotate(${
-                                    index * (360 / segments.length)
-                                }deg)`,
-                                backgroundColor: segmentColors[index],
+                                backgroundColor: segmentColors[i % segmentColors.length],
+                                transform: `rotate(${(360 / wheelSegments.length) * i}deg)`,
+                                // clipPath: `polygon(20% 100%, 0% 0%, 0% ${100 / (wheelSegments.length / 2)}%)`
+                                clipPath: `polygon(100% 100%, ${100 / (wheelSegments.length / 2)}% 100%, 0% 0%)`
                             }"
-                        >
-                            <div class="segment-text">
-                                {{ segment }}
+                            >
+
+                            <div v-if="segment.type === 'animal'">
+                                <!-- <img :src="segment.image" class="animal-icon" /> -->
+                                <p>{{ segment.label }}</p>
+                            </div>
+
+                            <div v-else>
+                                <p>{{ segment.label }}</p>
                             </div>
                         </div>
                     </div>
+
+
                     <div class="pointer-base"></div>
                     <div class="pointer">▼</div>
                     <div class="wheel-center">SPIN</div>
@@ -244,7 +418,7 @@ onMounted(async () => {
                 <div class="result-container">
                     <div class="result-label">Current Result:</div>
                     <div class="result" :class="{ pulse: currentSegment }">
-                        {{ currentSegment || "-" }}
+                        {{ currentSegment.label || "-" }}
                     </div>
                     <!-- <div class="balance-display">
             💰 Your Balance: ${{ balance }}
@@ -309,14 +483,22 @@ onMounted(async () => {
                             :key="index"
                             class="history-item"
                             :class="{
-                                bankrupt: item.segment === 'Bankrupt',
-                                'lose-turn': item.segment === 'Lose a Turn',
-                                bonus: item.segment.includes('Bonus'),
+                                bankrupt: item.segment.label === 'Bankrupt',
+                                'lose-turn': item.segment.label === 'Lose a Turn',
+                                bonus: typeof item.segment.label === 'string' && item.segment.label.includes('Bonus')
                             }"
-                        >
-                            <span>{{ item.segment }}</span>
+                            >
+                            <span>
+                                <template v-if="item.segment.type === 'animal'">
+                                🐾 {{ item.segment.label }}
+                                </template>
+                                <template v-else>
+                                {{ item.segment.label }}
+                                </template>
+                            </span>
                             <span>{{ item.timestamp }}</span>
                         </div>
+
                         <div v-if="spinHistory.length === 0" class="no-history">
                             No spins yet
                         </div>
@@ -429,12 +611,12 @@ onMounted(async () => {
 
 .wheel-wrapper {
     position: relative;
-    width: 350px;
-    height: 350px;
+    width: 400px;
+    height: 400px;
     margin-bottom: 10px;
 }
 
-.wheel {
+/* .wheel {
     width: 100%;
     height: 100%;
     border-radius: 50%;
@@ -443,9 +625,9 @@ onMounted(async () => {
     box-shadow: 0 0 0 15px #228b22, 0 0 30px rgba(0, 0, 0, 0.5);
     background: #228b22;
     overflow: hidden;
-}
+} */
 
-.segment {
+/* .segment {
     position: absolute;
     width: 50%;
     height: 50%;
@@ -461,7 +643,7 @@ onMounted(async () => {
     font-size: 1.1rem;
     overflow: hidden;
     border: 2px solid #000;
-}
+} */
 
 .segment-text {
     position: absolute;
@@ -859,8 +1041,8 @@ onMounted(async () => {
 
 @media (max-width: 900px) {
     .wheel-wrapper {
-        width: 300px;
-        height: 300px;
+        width: 350px;
+        height: 350px;
     }
 
     .segment {
@@ -920,5 +1102,136 @@ onMounted(async () => {
         top: 15px;
         left: 15px;
     }
+}
+.balance-bar {
+  background: #ffd700;
+  border: 2px solid #000;
+  border-radius: 10px;
+  padding: 8px 16px;
+  margin-bottom: 30px;
+  font-size: 1.1rem;
+  color: #000;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  margin-bottom: 15px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #fff;
+}
+.wheel {
+  /* top: 50%;
+  left: 50%; */
+  position: relative;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  overflow: hidden;
+  /* transform: translate(-50%, -50%) rotate(0deg); */
+  transition: transform 4s cubic-bezier(0.33, 1, 0.68, 1);
+  box-shadow: 0 0 0 15px #228b22, 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
+/* .segment {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  top: 50%;
+  left: 50%;
+  transform-origin: 0% 0%;
+  display: flex;
+  flex-direction: column;
+  align-items:last baseline;
+  /* justify-content: center;  *//*
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+} */
+
+/* .wheel-wrapper {
+  width: 300px;
+  height: 300px;
+}
+
+.wheel {
+  width: 300px;
+  height: 300px;
+} */
+
+/* .segment {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  top: 50%;
+  left: 50%;
+  transform-origin: 0% 0%;
+  display: flex;
+  flex-direction: column;
+  align-items:last baseline;
+  /*justify-content: center;*/ /*
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8); 
+}*/
+/*.segment {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  top: 50%;
+  left: 50%;
+  transform-origin: 0% 0%;
+  clip-path: polygon(0% 0%, 100% 0%, 0% 100%);
+  display: flex;
+  align-items:last baseline;
+  /* justify-content: center;  *//*
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}*/
+.segment {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  top: 50%;
+  left: 50%;
+  transform-origin: 0% 0%;
+  display: flex;
+  flex-direction: column;
+  /* align-items: center; */
+  justify-content: center;
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}
+.segment p {
+  transform: rotate(69deg); /* optional tweak */
+  text-align: center;
+  width: 100%;
+  /* font-size: 0.9rem; */
+  font-weight: bold;
+  margin-top: 10rem;
+  padding-right: 10rem;
+ /* margin-left: 4rem; */
+  font-size: 1rem;
+  white-space: nowrap;
+
+}
+
+.segment img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  transform: rotate(-18deg);
+  position: absolute;
+}
+
+.animal-icon {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
 }
 </style>
