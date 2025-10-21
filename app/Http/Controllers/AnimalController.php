@@ -25,6 +25,7 @@ class AnimalController extends Controller
             'nosaukums' => 'required|string|max:255',
             'bilde' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'audio' => 'nullable|mimes:mp3,wav,ogg|max:10240',
+            'is_unlockable' => 'boolean'
         ]);
 
         $bildePath = null;
@@ -42,6 +43,7 @@ class AnimalController extends Controller
             'nosaukums' => $validated['nosaukums'],
             'bilde' => $bildePath,
             'audio' => $audioPath,
+            'is_unlockable' => $request->input('is_unlockable', false),
         ]);
 
         return response()->json(['message' => 'Dzīvnieks veiksmīgi pievienots!']);
@@ -66,12 +68,7 @@ class AnimalController extends Controller
 
     public function userAnimals(Request $request)
     {
-        // $user = auth()->user();
-
         $animals = Animal::where('is_default', true)->get();
-            // ->orWhereHas('users', fn($q) => $q->where('users.id', $user->id))
-            // ->get();
-
         return response()->json($animals);
     }
 
@@ -83,28 +80,25 @@ class AnimalController extends Controller
         'nosaukums' => 'required|string|max:255',
         'bilde' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         'audio' => 'nullable|mimes:mp3,wav,ogg|max:10240',
+        'is_unlockable' => 'boolean'
     ]);
 
-    // Ja ir jauna bilde — izdzēš veco un saglabā jauno
     if ($request->hasFile('bilde')) {
         if ($dzivnieks->bilde) {
             Storage::disk('public')->delete($dzivnieks->bilde);
         }
-        $bildePath = $request->file('bilde')->store('dzivnieki/bildes', 'public');
-        $dzivnieks->bilde = $bildePath;
+        $dzivnieks->bilde = $request->file('bilde')->store('dzivnieki/bildes', 'public');
     }
 
-    // Ja ir jauns audio — izdzēš veco un saglabā jauno
     if ($request->hasFile('audio')) {
         if ($dzivnieks->audio) {
             Storage::disk('public')->delete($dzivnieks->audio);
         }
-        $audioPath = $request->file('audio')->store('dzivnieki/audio', 'public');
-        $dzivnieks->audio = $audioPath;
+        $dzivnieks->audio = $request->file('audio')->store('dzivnieki/audio', 'public');
     }
 
-    // Atjaunina nosaukumu
     $dzivnieks->nosaukums = $validated['nosaukums'];
+    $dzivnieks->is_unlockable = $request->input('is_unlockable', false);
     $dzivnieks->save();
 
     return response()->json([
