@@ -3,76 +3,170 @@ import { ref, computed, onMounted } from "vue";
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 
+const renameTarget = ref(null);
+const renameTitle = ref("");
 const router = useRouter();
 
 const profileName = ref("");
-
-
-
-
-
 const userInitials = computed(() =>
-  profileName.value
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
+  profileName.value.split(" ").map((n) => n[0]).join("")
 );
 
 const showUploadModal = ref(false);
 const showMusicList = ref(false);
+const showRenameModal = ref(false);
 
-const newMusic = ref({
-  title: "",
-  file: null,
-});
+const newMusic = ref({ title: "" });
+const myMusic = ref([]);
+
+// 🔍 Search and Sort Controls
+const searchQuery = ref("");
+const sortOption = ref("modified"); // default sort
+
+// 🧩 Load user + their projects
 onMounted(async () => {
   try {
-  const response = await axios.get('/api/authuser');
-
-  if (response.data.isAuthenticated === true) {
-    profileName.value = response.data.user.name;
-  } else {
+    const response = await axios.get('/api/authuser', { withCredentials: true });
+    if (response.data.isAuthenticated) {
+      profileName.value = response.data.user.name;
+      await fetchProjects();
+    } else {
+      router.push('/');
+    }
+  } catch (error) {
+    console.error('auth error:', error);
     router.push('/');
   }
+});
 
-} catch (error) {
-  console.error('auth error:', error);
-  router.push('/');
+async function fetchProjects() {
+  try {
+    const res = await axios.get('/api/projects', { withCredentials: true });
+    console.log(res.data)
+    myMusic.value = res.data.map(p => ({
+      id: p.id,
+      title: p.name,
+      bpm: p.data.timeline.bpm || 120, // optional field for future
+      date: new Date(p.updated_at || p.created_at),
+    }));
+    console.log(myMusic)
+  } catch (err) {
+    console.error("❌ Failed to load projects:", err);
+  }
 }
-})
+
+// 🟢 Create new project
+async function createProject() {
+  try {
+    const res = await axios.post(
+      '/api/projects',
+      { name: newMusic.value.title, data: {} },
+      { withCredentials: true }
+    );
+    router.push(`/gameview/${res.data.id}`);
+  } catch (err) {
+    console.error("❌ Failed to create project:", err);
+  }
+}
+
+function viewMyMusic() {
+  showMusicList.value = true;
+}
+
+function playMusic(project) {
+  router.push(`/gameview/${project.id}`);
+}
+
+// 🧭 Sorting + Filtering Logic
+const filteredAndSortedMusic = computed(() => {
+  // Filter by search
+  let filtered = myMusic.value.filter(m =>
+    m.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+
+  // Sort
+  switch (sortOption.value) {
+    case "name":
+      filtered.sort((a, b) => a.title.localeCompare(b.title));
+      break;
+    case "bpm":
+      filtered.sort((a, b) => (a.bpm || 0) - (b.bpm || 0));
+      break;
+    case "modified":
+      filtered.sort((a, b) => b.date - a.date);
+      break;
+  }
+
+  return filtered;
+});
 
 const logout = async () => {
-
   try {
-    const response = await axios.post('/api/logout');
-
-    console.log('Logout successful:', response.data);
-    
-   
+    await axios.post('/api/logout');
     router.push('/');
-
   } catch (error) {
     console.error('logout error:', error);
-    
-  } 
+  }
 };
+// ✏️ Rename project
+function openRenameModal(project) {
+  renameTarget.value = project;
+  renameTitle.value = project.title;
+  showRenameModal.value = true;
+}
 
-const myMusic = ref([
-  { id: 1, title: "Rīta saule", date: "2023-10-15" },
-  { id: 2, title: "Vakara vējš", date: "2023-09-22" },
-  { id: 3, title: "Pilsētas ritms", date: "2023-08-05" },
-]);
+async function renameProject() {
+  try {
+    await axios.put(`/api/projects/${renameTarget.value.id}`, { name: renameTitle.value });
+    showRenameModal.value = false;
+    await fetchProjects();
+  } catch (err) {
+    console.error("❌ Rename failed:", err);
+  }
+}
+
+// 📄 Duplicate project
+async function duplicateProject(project) {
+  try {
+    const newName = prompt("Jaunais nosaukums:", `${project.title} (1)`);
+    if (!newName) return;
+
+    const fullRes = await axios.get(`/api/projects/${project.id}`);
+    const fullProject = fullRes.data;
+
+    const res = await axios.post(
+      '/api/projects',
+      {
+        name: newName,
+        data: fullProject.data || {},
+      },
+      { withCredentials: true }
+    );
+
+    const newId = res.data.id; // Laravel should return the new ID
+    await fetchProjects();
+
+    // ✅ Redirect user to the new beat editor
+    router.push(`/gameview/${newId}`);
+  } catch (err) {
+    console.error("❌ Duplicate failed:", err);
+  }
+}
 
 
+// 🗑 Delete project
+async function deleteProject(project) {
+  if (!confirm(`Vai tiešām dzēst "${project.title}"?`)) return;
+  try {
+    await axios.delete(`/api/projects/${project.id}`);
+    await fetchProjects();
+  } catch (err) {
+    console.error("❌ Delete failed:", err);
+  }
+}
 
-const viewMyMusic = () => {
-  showMusicList.value = true;
-};
 
-const playMusic = (music) => {
-  alert(`Atskaņo: ${music.title}`);
-};
-</script>  
+</script>
 
 <template>
   <div id="app">
@@ -104,21 +198,73 @@ const playMusic = (music) => {
 
     <div class="music-list" v-if="showMusicList">
       <h3 class="section-title">🎶 Mana mūzika</h3>
-      <div v-if="myMusic.length > 0">
-        <div class="music-item" v-for="(music, index) in myMusic" :key="index">
+
+      <!-- 🔍 Search + Sort Controls -->
+      <div class="music-controls">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="🔍 Meklēt pēc nosaukuma..."
+          class="search-input"
+        />
+        <select v-model="sortOption" class="sort-select">
+          <option value="modified">📅 Pēc datuma</option>
+          <option value="name">🔤 Pēc nosaukuma</option>
+          <option value="bpm">🎚️ Pēc BPM</option>
+        </select>
+      </div>
+
+      <div v-if="filteredAndSortedMusic.length > 0">
+        <div
+          class="music-item"
+          v-for="(music, index) in filteredAndSortedMusic"
+          :key="index"
+        >
           <div class="music-info">
             <div class="music-title">{{ music.title }}</div>
-            <div class="music-date">Pievienots: {{ music.date }}</div>
+            <div class="music-date">
+              BPM: {{ music.bpm }} | Pēdējoreiz: {{ music.date.toLocaleDateString() }}
+            </div>
           </div>
-          <button class="btn btn-secondary" @click="playMusic(music)">
-            ▶ Atskaņot
-          </button>
+
+          <div class="actions">
+            <button class="btn btn-secondary" @click="playMusic(music)">Turpināt darbu</button>
+            <button class="btn btn-secondary" @click="openRenameModal(music)">Pārsaukt</button>
+            <button class="btn btn-secondary" @click="duplicateProject(music)">Klonēt</button>
+            <button class="btn btn-danger" @click="deleteProject(music)">Dzēst</button>
+          </div>
         </div>
       </div>
+
       <div class="empty-state" v-else>
         <p>Vēl nav pievienota neviena mūzikas kompozīcija</p>
       </div>
     </div>
+
+    <!-- ✏️ Rename Modal -->
+    <div class="modal" v-if="showRenameModal">
+      <div class="modal-content">
+        <h3 class="modal-title">Pārsaukt "{{ renameTarget?.title }}"</h3>
+        <div class="form-group">
+          <label class="form-label">Jaunais nosaukums</label>
+          <input
+            type="text"
+            class="form-input"
+            v-model="renameTitle"
+            placeholder="Ievadi jauno nosaukumu"
+          />
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" @click="showRenameModal = false">
+            Atcelt
+          </button>
+          <button class="btn btn-primary" @click="renameProject">
+            Saglabāt
+          </button>
+        </div>
+      </div>
+    </div>
+
 
     <div class="modal" v-if="showUploadModal">
       <div class="modal-content">
@@ -136,9 +282,9 @@ const playMusic = (music) => {
           <button class="btn btn-secondary" @click="showUploadModal = false">
             Atcelt
           </button>
-          <router-link to="/gameview" class="btn btn-primary">
+          <button to="/gameview" class="btn btn-primary" @click="createProject">
             Izveidot
-          </router-link>
+          </button>
         </div>
       </div>
     </div>
@@ -380,4 +526,46 @@ body::after {
   margin-top: 5px;
   font-size: 15px;
 }
+
+.music-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  font-size: 15px;
+}
+
+.sort-select {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #ffcc00;
+  color: #333;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-danger {
+  background: #ff4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dd2222;
+}
+
 </style>

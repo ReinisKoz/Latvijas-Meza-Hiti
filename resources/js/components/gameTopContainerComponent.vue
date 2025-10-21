@@ -1,12 +1,12 @@
 <script setup>
-import { onMounted, reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { enableDragDrop } from '/resources/js/scripts.js'
 import { timeline } from '/resources/js/scripts.js'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const props = reactive({ ...timeline })
+// const props = ref({ ...timeline })
 
 function goBack() {
   router.push('/loggedview')
@@ -24,13 +24,13 @@ function goBack() {
 
     <div class="top-container">
       <div class="tree-row">
-        <div class="dropzone-container" v-for="colIndex in props.cols" :key="colIndex">
+        <div class="dropzone-container" v-for="colIndex in timeline.cols" :key="colIndex">
           <div class="overlay">
             <div
-              v-for="n in props.rows"
+              v-for="n in timeline.rows"
               :key="n"
               class="dropzone"
-              :id="`dropzone-${(colIndex - 1) * props.cols + (n - 1)}`"
+              :id="`dropzone-${(colIndex - 1) * timeline.rows + (n - 1)}`"
             ></div>
           </div>
           <img src="/public/tree1.png" alt="" class="unselectable"/>
