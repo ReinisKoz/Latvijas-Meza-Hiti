@@ -81,7 +81,7 @@ const playMusic = (music) => {
         <div class="profile-pic">{{ userInitials }}</div>
         <div class="profile-name">{{ profileName }}</div>
       </div>
-      <button v-on:click="logout" class="logout-btn">👋 Izlogoties</button>
+      <button v-on:click="logout" class="logout-btn">👋 Iziet</button>
     </div>
 
     <div class="main-content">

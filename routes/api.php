@@ -15,6 +15,7 @@ Route::middleware(['web'])->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/authuser', [AuthController::class, 'authuser']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::put('/dzivnieki/{id}', [AnimalController::class, 'update']);
 });
 
 

@@ -1,13 +1,20 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useRouter } from 'vue-router';
 
+const router = useRouter()
+
+// ==================== Dzīvnieki ====================
 const animals = ref([])
 const newAnimal = ref({
   nosaukums: '',
   bilde: null,
   audio: null
 })
+
+const editingAnimal = ref(null)
+const isEditing = ref(false)
 
 const fetchAnimals = async () => {
   try {
@@ -25,35 +32,20 @@ const handleFileChange = (e, type) => {
 
 const addAnimal = async () => {
   try {
-    // Sagatavo FormData
     const formData = new FormData()
     formData.append('nosaukums', newAnimal.value.nosaukums)
     if (newAnimal.value.bilde) formData.append('bilde', newAnimal.value.bilde)
     if (newAnimal.value.audio) formData.append('audio', newAnimal.value.audio)
 
-    // Debug: pārbaudi, ko sūti
-    for (let pair of formData.entries()) {
-      console.log(`${pair[0]}:`, pair[1])
-    }
-
-    // POST pieprasījums
     await axios.post('/api/dzivnieki', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
 
-    // Reset formas laukus
     newAnimal.value = { nosaukums: '', bilde: null, audio: null }
-
-    // Ielādē dzīvniekus atkārtoti
     fetchAnimals()
-
   } catch (error) {
-    // Ja Laravel atgriež validācijas kļūdas
     if (error.response && error.response.status === 422) {
       const errors = error.response.data.errors
-      console.error('Validācijas kļūdas:', errors)
-
-      // Parādi kļūdas lietotājam
       let message = 'Neizdevās pievienot dzīvnieku:\n'
       for (const field in errors) {
         message += `${field}: ${errors[field].join(', ')}\n`
@@ -67,6 +59,7 @@ const addAnimal = async () => {
 }
 
 const deleteAnimal = async (id) => {
+  if (!confirm('Vai tiešām dzēst šo dzīvnieku?')) return
   try {
     await axios.delete(`/api/dzivnieki/${id}`)
     fetchAnimals()
@@ -75,15 +68,53 @@ const deleteAnimal = async (id) => {
   }
 }
 
-const logout = () => {
-  // Pievienojiet savu logout loģiku šeit
-  localStorage.removeItem('authToken') // vai cits autentifikācijas tokens
-  window.location.href = '/' // vai cita login lapa
+// ==================== Rediģēšana ====================
+const startEditAnimal = (animal) => {
+  editingAnimal.value = { ...animal }
+  isEditing.value = true
 }
 
-// onMounted(fetchAnimals)
+const handleEditFileChange = (e, type) => {
+  if (!editingAnimal.value) return
+  if (type === 'bilde') editingAnimal.value.bilde = e.target.files[0]
+  if (type === 'audio') editingAnimal.value.audio = e.target.files[0]
+}
 
-// Existing code...
+const editAnimal = async () => {
+  try {
+    const formData = new FormData()
+    formData.append('nosaukums', editingAnimal.value.nosaukums)
+    if (editingAnimal.value.bilde instanceof File)
+      formData.append('bilde', editingAnimal.value.bilde)
+    if (editingAnimal.value.audio instanceof File)
+      formData.append('audio', editingAnimal.value.audio)
+
+    await axios.post(`/api/dzivnieki/${editingAnimal.value.id}?_method=PUT`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    alert('✅ Dzīvnieks veiksmīgi atjaunināts!')
+    isEditing.value = false
+    editingAnimal.value = null
+    fetchAnimals()
+  } catch (error) {
+    console.error('Kļūda atjauninot dzīvnieku:', error)
+    alert('❌ Neizdevās atjaunināt dzīvnieku.')
+  }
+}
+
+// ==================== Logout ====================
+const logout = async () => {
+  try {
+    const response = await axios.post('/api/logout');
+    console.log('Logout successful:', response.data);
+    router.push('/');
+  } catch (error) {
+    console.error('logout error:', error);
+  } 
+}
+
+// ==================== Redeem kodi ====================
 const codes = ref([])
 const newCode = ref({ reward: '', expires_at: '' })
 
@@ -138,7 +169,7 @@ onMounted(() => {
     <h1>🐾 Admin panelis — Dzīvnieki</h1>
     
     <div class="header-controls">
-      <button @click="logout" class="btn-logout">🚪 Iziet</button>
+      <button v-on:click="logout" class="btn-logout">🚪 Iziet</button>
     </div>
 
     <div class="form">
@@ -155,6 +186,25 @@ onMounted(() => {
       <button @click="addAnimal" class="btn-primary">✅ Pievienot dzīvnieku</button>
     </div>
 
+    <!-- REDIĢĒŠANAS FORMA -->
+    <div v-if="isEditing" class="form edit-form">
+      <h2>✏️ Rediģēt dzīvnieku</h2>
+
+      <label>Nosaukums:</label>
+      <input v-model="editingAnimal.nosaukums" />
+
+      <label>Jauna bilde (nav obligāta):</label>
+      <input type="file" @change="e => handleEditFileChange(e, 'bilde')" accept="image/*" />
+
+      <label>Jauns audio (nav obligāts):</label>
+      <input type="file" @change="e => handleEditFileChange(e, 'audio')" accept="audio/*" />
+
+      <div class="edit-buttons">
+        <button class="btn-primary" @click="editAnimal">💾 Saglabāt</button>
+        <button class="btn-logout" @click="isEditing = false">❌ Atcelt</button>
+      </div>
+    </div>
+
     <h2>Esošie dzīvnieki</h2>
     <div class="animal-grid">
       <div v-for="dz in animals" :key="dz.id" class="animal-card">
@@ -169,25 +219,27 @@ onMounted(() => {
           <h3>{{ dz.nosaukums }}</h3>
           <audio v-if="dz.audio_url" :src="dz.audio_url" controls></audio>
           <div v-else class="no-audio">🔇 Nav audio</div>
+
+          <button @click="startEditAnimal(dz)" class="btn-edit">✏️ Rediģēt</button>
           <button @click="deleteAnimal(dz.id)" class="btn-danger">🗑️ Dzēst</button>
         </div>
       </div>
     </div>
 
     <!-- Redeem Codes Section -->
-  <div class="redeem-codes">
-    <h2>🎁 Manage Redeem Codes</h2>
-    <div class="form">
-      <label>Reward Type:</label>
-      <input v-model="newCode.reward" placeholder="e.g., freespin, bonus100" />
+    <div class="redeem-codes">
+      <h2>🎁 Manage Redeem Codes</h2>
+      <div class="form">
+        <label>Reward Type:</label>
+        <input v-model="newCode.reward" placeholder="e.g., freespin, bonus100" />
 
-      <label>Expiry (optional):</label>
-      <input type="date" v-model="newCode.expires_at" />
+        <label>Expiry (optional):</label>
+        <input type="date" v-model="newCode.expires_at" />
 
-      <button class="btn-primary" @click="addCode">✅ Generate Code</button>
-    </div>
+        <button class="btn-primary" @click="addCode">✅ Generate Code</button>
+      </div>
 
-    <h3>Existing Codes</h3>
+      <h3>Existing Codes</h3>
       <table>
         <thead>
           <tr>
@@ -201,8 +253,8 @@ onMounted(() => {
         <tbody>
           <tr v-for="c in codes" :key="c.id">
             <td style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span>{{ c.code }}</span>
-            <button class="btn-copy" @click="copyCode(c.code)">📋</button>
+              <span>{{ c.code }}</span>
+              <button class="btn-copy" @click="copyCode(c.code)">📋</button>
             </td>
             <td>{{ c.reward }}</td>
             <td>{{ c.is_used ? '✅' : '❌' }}</td>
@@ -215,25 +267,24 @@ onMounted(() => {
       </table>
     </div>
 
-    <!-- Problēmu risinājumu sadaļa -->
+    <!-- Problēmu risināšana -->
     <div class="troubleshooting">
       <h3>⚠️ Problēmu risināšana:</h3>
       <div class="issue">
         <h4>Bildes nerādās?</h4>
         <ul>
-          <li>Pārbaudiet, vai faila formāts ir atbalstīts (jpg, png, gif)</li>
-          <li>Pārbaudiet, vai back-end pareizi apstrādā failu augšupielādi</li>
-          <li>Pārbaudiet, vai <code>bilde_url</code> atgriež pareizo ceļu</li>
+          <li>Pārbaudiet faila formātu (jpg, png, gif)</li>
+          <li>Pārbaudiet, vai back-end apstrādā augšupielādi</li>
+          <li>Pārbaudiet, vai <code>bilde_url</code> ir pareizs ceļš</li>
           <li>Pārbaudiet browsera console kļūdas</li>
         </ul>
       </div>
       <div class="issue">
         <h4>Audio neskan?</h4>
         <ul>
-          <li>Pārbaudiet, vai audio formāts ir atbalstīts (mp3, wav, ogg)</li>
-          <li>Pārbaudiet, vai audio fails ir augšupielādēts serverī</li>
-          <li>Pārbaudiet, vai <code>audio_url</code> atgriež pareizo ceļu</li>
-          <li>Mēģiniet atvērt audio URL tieši browserā</li>
+          <li>Pārbaudiet formātu (mp3, wav, ogg)</li>
+          <li>Pārbaudiet, vai fails ir augšupielādēts</li>
+          <li>Pārbaudiet <code>audio_url</code> ceļu</li>
         </ul>
       </div>
     </div>
@@ -268,6 +319,11 @@ h1 {
   padding: 25px;
   margin-bottom: 40px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.edit-form {
+  background: #fff7e6;
+  border: 1px solid #ffe58f;
 }
 
 label {
@@ -319,6 +375,15 @@ button {
 
 .btn-logout:hover {
   background: #5a6268;
+}
+
+.btn-edit {
+  background: #ffc107;
+  color: white;
+}
+
+.btn-edit:hover {
+  background: #e0a800;
 }
 
 .animal-grid {
@@ -376,30 +441,6 @@ audio {
   margin-top: 30px;
 }
 
-.troubleshooting h3 {
-  color: #856404;
-  margin-top: 0;
-}
-
-.issue {
-  margin-bottom: 15px;
-}
-
-.issue h4 {
-  color: #856404;
-  margin-bottom: 8px;
-}
-
-.issue ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-.issue li {
-  margin-bottom: 5px;
-  color: #666;
-}
-
 .redeem-codes {
   background: #f0f8ff;
   border-radius: 15px;
@@ -428,14 +469,6 @@ td {
   background: #ffffff;
 }
 
-input {
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  width: 100%;
-}
-
 .btn-copy {
   background: #007bff;
   color: white;
@@ -450,5 +483,4 @@ input {
 .btn-copy:hover {
   background: #0056b3;
 }
-
 </style>
