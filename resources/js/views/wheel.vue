@@ -1176,8 +1176,8 @@ async function unlockAnimal(name) {
   /* top: 50%;
   left: 50%; */
   position: relative;
-  width: 350px;
-  height: 350px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   overflow: hidden;
   /* transform: translate(-50%, -50%) rotate(0deg); */
