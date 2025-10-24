@@ -32,9 +32,8 @@ Route::middleware(['web'])->group(function () {
 
 
 
-Route::get('/dzivnieki', [AnimalController::class, 'index']);
-Route::post('/dzivnieki', [AnimalController::class, 'store']);
-Route::delete('/dzivnieki/{id}', [AnimalController::class, 'destroy']);
+Route::apiResource('dzivnieki', AnimalController::class);
+    
 
 Route::get('/animal', function () {
     $animals = Animal::all()->map(function ($animal) {

@@ -2,11 +2,52 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
+const editingAnimal = ref(null)
+
+const startEdit = (animal) => {
+  // Nokopējam izvēlētā dzīvnieka datus
+  editingAnimal.value = { ...animal }
+}
+
+const cancelEdit = () => {
+  editingAnimal.value = null
+}
+
+const handleEditFileChange = (e, type) => {
+  if (!editingAnimal.value) return
+  if (type === 'bilde') editingAnimal.value.bilde = e.target.files[0]
+  if (type === 'audio') editingAnimal.value.audio = e.target.files[0]
+}
+
+const saveEdit = async () => {
+  try {
+    const formData = new FormData()
+    formData.append('nosaukums', editingAnimal.value.nosaukums)
+    if (editingAnimal.value.bilde instanceof File)
+      formData.append('bilde', editingAnimal.value.bilde)
+    if (editingAnimal.value.audio instanceof File)
+      formData.append('audio', editingAnimal.value.audio)
+    formData.append('is_unlockable', editingAnimal.value.is_unlockable ? 1 : 0)
+
+    
+    await axios.post(`/api/dzivnieki/${editingAnimal.value.id}?_method=PUT`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    editingAnimal.value = null
+    fetchAnimals()
+  } catch (error) {
+    console.error('Kļūda saglabājot rediģēšanu:', error)
+    alert('Neizdevās saglabāt izmaiņas.')
+  }
+}
+
 const animals = ref([])
 const newAnimal = ref({
   nosaukums: '',
   bilde: null,
-  audio: null
+  audio: null,
+  is_unlockable: false
 })
 
 const fetchAnimals = async () => {
@@ -30,6 +71,8 @@ const addAnimal = async () => {
     formData.append('nosaukums', newAnimal.value.nosaukums)
     if (newAnimal.value.bilde) formData.append('bilde', newAnimal.value.bilde)
     if (newAnimal.value.audio) formData.append('audio', newAnimal.value.audio)
+    formData.append('is_unlockable', newAnimal.value.is_unlockable ? 1 : 0)
+
 
     // Debug: pārbaudi, ko sūti
     for (let pair of formData.entries()) {
@@ -42,7 +85,8 @@ const addAnimal = async () => {
     })
 
     // Reset formas laukus
-    newAnimal.value = { nosaukums: '', bilde: null, audio: null }
+    newAnimal.value = { nosaukums: '', bilde: null, audio: null, is_unlockable: false }
+
 
     // Ielādē dzīvniekus atkārtoti
     fetchAnimals()
@@ -171,7 +215,14 @@ onMounted(() => {
               <label>Audio:</label>
               <input type="file" @change="e => handleFileChange(e, 'audio')" accept="audio/*" />
             </div>
-            
+
+            <div class="form-group">
+            <label>
+              <input type="checkbox" v-model="newAnimal.is_unlockable" />
+              Vai dzīvnieks ir jāatbloķē?
+            </label>
+            </div>
+
             <button @click="addAnimal" class="btn-primary">✅ Pievienot dzīvnieku</button>
           </div>
         </div>
@@ -182,25 +233,56 @@ onMounted(() => {
           </div>
           <div class="animal-grid">
             <div v-for="dz in animals" :key="dz.id" class="animal-card">
-              <div class="animal-image-container">
-                <img
-                  v-if="dz.bilde_url"
-                  :src="dz.bilde_url"
-                  class="animal-image"
-                  alt="Dzīvnieka bilde"
-                />
-                <div v-else class="no-image">📷 Nav bildes</div>
-              </div>
-              <div class="animal-info">
-                <h3>{{ dz.nosaukums }}</h3>
-                <div class="audio-container">
-                  <audio v-if="dz.audio_url" :src="dz.audio_url" controls></audio>
-                  <div v-else class="no-audio">🔇 Nav audio</div>
+              <!-- Ja rediģējam -->
+              <div v-if="editingAnimal && editingAnimal.id === dz.id" class="edit-form">
+                <h3>✏️ Rediģē dzīvnieku</h3>
+                <div class="form-group">
+                  <label>Nosaukums:</label>
+                  <input v-model="editingAnimal.nosaukums" />
                 </div>
-                <button @click="deleteAnimal(dz.id)" class="btn-danger">🗑️ Dzēst</button>
+
+                <div class="form-group">
+                  <label>Jauna bilde (neobligāti):</label>
+                  <input type="file" @change="e => handleEditFileChange(e, 'bilde')" accept="image/*" />
+                </div>
+
+                <div class="form-group">
+                  <label>Jauns audio (neobligāti):</label>
+                  <input type="file" @change="e => handleEditFileChange(e, 'audio')" accept="audio/*" />
+                </div>
+
+                <div class="edit-buttons">
+                  <button class="btn-primary" @click="saveEdit">💾 Saglabāt</button>
+                  <button class="btn-logout" @click="cancelEdit">❌ Atcelt</button>
+                </div>
+              </div>
+
+              <!-- Ja neredigē -->
+              <div v-else>
+                <div class="animal-image-container">
+                  <img
+                    v-if="dz.bilde_url"
+                    :src="dz.bilde_url"
+                    class="animal-image"
+                    alt="Dzīvnieka bilde"
+                  />
+                  <div v-else class="no-image">📷 Nav bildes</div>
+                </div>
+                <div class="animal-info">
+                  <h3>{{ dz.nosaukums }}</h3>
+                  <div class="audio-container">
+                    <audio v-if="dz.audio_url" :src="dz.audio_url" controls></audio>
+                    <div v-else class="no-audio">🔇 Nav audio</div>
+                  </div>
+                  <div class="buttons">
+                    <button class="btn-primary" @click="startEdit(dz)">✏️ Rediģēt</button>
+                    <button class="btn-danger" @click="deleteAnimal(dz.id)">🗑️ Dzēst</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
         </div>
 
         <div class="section">
