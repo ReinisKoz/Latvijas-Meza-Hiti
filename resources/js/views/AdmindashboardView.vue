@@ -719,4 +719,45 @@ code {
     padding: 8px 10px;
   }
 }
+
+/* 🟢 Styled dropdowns (reward select) */
+.form-group select {
+  padding: 12px 15px;
+  border: none;
+  border-radius: 10px;
+  background-color: #f8f8f8;
+  font-size: 16px;
+  color: #333;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #228b22 50%),
+                    linear-gradient(135deg, #228b22 50%, transparent 50%);
+  background-position: calc(100% - 20px) calc(1em + 2px),
+                       calc(100% - 15px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.form-group select:hover {
+  background-color: #fffbe6;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.5);
+}
+
+.form-group select:focus {
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(34, 139, 34, 0.4);
+}
+
+/* 🟡 Optional: style dropdown options themselves */
+.form-group select option {
+  background-color: #fff;
+  color: #333;
+}
+
+.form-group select option:checked {
+  background-color: #ffd700;
+  color: #000;
+}
 </style>
