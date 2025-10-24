@@ -210,7 +210,13 @@ onMounted(() => {
           <div class="form">
             <div class="form-group">
               <label>Atlīdzības veids:</label>
-              <input v-model="newCode.reward" placeholder="piem., freespin, bonus100" />
+              <select v-model="newCode.reward">
+                <option disabled value="">Izvēlieties atlīdzības veidu</option>
+                <option value="freespin">freespin</option>
+                <option value="bonus100">bonus100</option>
+                <option value="bonus500">bonus500</option>
+                <option value="bonus2000">bonus2000</option>
+              </select>
             </div>
             
             <div class="form-group">

@@ -81,21 +81,40 @@ async function spinWheel() {
 
   if (soundEnabled.value) playSpinSound();
   console.log('Wheel segments:', wheelSegments.value);
+  const wheelEl = document.querySelector('.wheel');
+    wheelEl.style.transform = `rotate(${angle}deg)`;
 
 
   setTimeout(async () => {
-    const segmentSize = 360 / wheelSegments.value.length;
-    const normalizedAngle = angle % 360;
-    const pointerAngle = (360 - normalizedAngle + segmentSize / 2) % 360;
-    const index = Math.floor(pointerAngle / segmentSize);
+    // const segmentSize = 360 / wheelSegments.value.length;
+    // const normalizedAngle = (angle + 180 + segmentSize) % 360;
+    // const pointerAngle = (segmentSize / 2) % 360;
+    // const index = Math.floor(pointerAngle / segmentSize);
+    // const result = wheelSegments.value[index];
+    // console.log(segmentSize)
+    // console.log(index)
+
+    const segmentLenghtGrados = 360 / wheelSegments.value 
+
+
+
+    console.log(wheelEl.style.transform)
+    const transformStr = wheelEl.style.transform;
+    const match = transformStr.match(/rotate\(\s*(-?\d+(\.\d+)?)deg\s*\)/);
+
+    const rotation = parseFloat(match[1]);
+    console.log(rotation); // numeric value of rotation
+    const pointerAngle = (rotation + 210 + 15) % 360;
+    console.log((rotation + 210 + 15) % 360)
+    const index = Math.floor(pointerAngle / 30);
     const result = wheelSegments.value[index];
-    console.log(pointerAngle / segmentSize)
+    console.log(30)
     console.log(index)
-
-    const wheelEl = document.querySelector('.wheel');
-    wheelEl.style.transform = `rotate(${angle}deg)`;
-
     currentSegment.value = result;
+    
+    
+
+    // currentSegment.value = result;
 
     // If user lands on money
     if (result.type === 'money') {
@@ -164,22 +183,56 @@ function goBack() {
 
 async function redeemGiftCode() {
     console.log("redeemGiftCode start");
+
     if (!giftCode.value.trim()) {
         message.value = "⚠️ Please enter a gift code";
         return;
     }
+
     try {
         const res = await axios.post("/api/redeem", { code: giftCode.value });
         console.log(res);
         message.value = res.data.message;
+
         if (res.data.success) {
+            // Common helper to update balance in DB
+            const updateBalance = async (amount) => {
+                try {
+                    const balanceRes = await axios.post("/api/balance/update", { amount });
+                    if (balanceRes.data.success) {
+                        balance.value = balanceRes.data.balance; // update frontend
+                        console.log("Balance updated:", balance.value);
+                    }
+                } catch (err) {
+                    console.error("Failed to update balance:", err);
+                }
+            };
+
             if (res.data.reward === "freespin") {
-                spinWheel();
-            } else if (res.data.reward === "bonus100") {
+                // give +100 before spin
+                await updateBalance(100);
+                await spinWheel();
+            } 
+            else if (res.data.reward === "bonus100") {
+                await updateBalance(100);
                 spinHistory.value.unshift({
                     segment: "100 (Bonus)",
                     timestamp: new Date().toLocaleTimeString(),
-                    date: new Date().toLocaleDateString()
+                    date: new Date().toLocaleDateString(),
+                });
+            } else if (res.data.reward === "bonus500") {
+                await updateBalance(500);
+                spinHistory.value.unshift({
+                    segment: "500 (Bonus)",
+                    timestamp: new Date().toLocaleTimeString(),
+                    date: new Date().toLocaleDateString(),
+                });
+            } else if (res.data.reward === "bonus2000") {
+                await updateBalance(2000);
+                spinHistory.value.unshift({
+                    segment: "2000 (Bonus)",
+                    timestamp: new Date().toLocaleTimeString(),
+                    date: new Date().toLocaleDateString(),
                 });
             }
         }
@@ -187,9 +240,11 @@ async function redeemGiftCode() {
         console.log(err);
         message.value = err.response?.data?.message || "❌ Invalid code";
     }
+
     giftCode.value = "";
     setTimeout(() => (message.value = ""), 3000);
 }
+
 
 const balance = ref(0);
 // const unlockableAnimals = ref([]);
@@ -260,10 +315,10 @@ async function loadUnlockableAnimals() {
 }
 function setupWheel() {
   const moneySegments = [
-    { label: "100", type: "money", amount: 100 },
-    { label: "200", type: "money", amount: 200 },
-    { label: "300", type: "money", amount: 300 },
-    { label: "500", type: "money", amount: 500 },
+    { label: "150", type: "money", amount: 150 },
+    { label: "75", type: "money", amount: 75 },
+    { label: "25", type: "money", amount: 25 },
+    { label: "10", type: "money", amount: 10 },
     { label: "Bankrupt", type: "special" },
     { label: "Lose a Turn", type: "special" },
   ];
@@ -310,7 +365,7 @@ function injectAnimalsIntoWheel() {
   });
 }
 async function updateBalance(change) {
-    
+
   try {
     console.log("balance update")
     console.log(change)
@@ -396,8 +451,8 @@ async function unlockAnimal(name) {
                     </div>
 
 
-                    <div class="pointer-base"></div>
-                    <div class="pointer">▼</div>
+                    <!-- <div class="pointer-base"></div>
+                    <div class="pointer">▼</div> -->
                     <div class="wheel-center">SPIN</div>
                 </div>
             </div>
@@ -1128,6 +1183,7 @@ async function unlockAnimal(name) {
   /* transform: translate(-50%, -50%) rotate(0deg); */
   transition: transform 4s cubic-bezier(0.33, 1, 0.68, 1);
   box-shadow: 0 0 0 15px #228b22, 0 0 30px rgba(0, 0, 0, 0.5);
+  /* transform: rotate(210deg); */
 }
 
 /* .segment {
