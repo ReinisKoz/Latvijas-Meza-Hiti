@@ -23,7 +23,7 @@ class ProjectController extends Controller
         $project = Project::create([
             'user_id' => Auth::id(),
             'name' => $request->name,
-            'data' => json_decode('{"timeline":{"bpm":60,"length":10,"volume":1},"positions":{}}'),
+            'data' => json_decode('{"timeline":{},"positions":{}}'),
         ]);
 
         return response()->json($project);

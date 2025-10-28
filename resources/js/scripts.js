@@ -52,12 +52,6 @@ function splitDropZonelId(id) {
   return null
 }
 
-function normalizeAudioUrl(url) {
-  if (!url) return null
-  if (/^https?:\/\//.test(url)) return url
-  if (url.startsWith('/')) return url
-  return '/' + url.replace(/^\/+/, '')
-}
 
 // --------------------------------------------------------------------
 // Snap / dropzones
@@ -114,38 +108,6 @@ async function attachListeners() {
   }
 }
 
-function detachListeners() {
-  if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler)
-    resizeHandler = null
-  }
-  const scrollContainer = document.querySelector('.top-container')
-  if (scrollContainer && scrollHandler) {
-    scrollContainer.removeEventListener('scroll', scrollHandler)
-    scrollHandler = null
-  }
-}
-
-// export function createAnimalClones() {
-//   Object.entries(animalPositions).forEach(([dropzoneId, animalId]) => {
-//     const dz = document.getElementById(dropzoneId)
-//     if (!dz) return
-    
-
-//     const baseId = animalId.split('-')[0] // "bird"
-//     const count = parseInt(animalId.split('-')[1]) || 0
-
-//     const clone = document.createElement('img')
-//     clone.id = `${baseId}-${count}`
-//     clone.classList.add('draggable', 'animal')
-//     clone.src = `/images/${baseId}.png` // or from your animal data
-//     clone.alt = baseId
-//     clone.style.position = 'absolute'
-    
-//     dz.appendChild(clone)
-//   })
-// }
-
 export async function createAnimalClones() {
   const animalImages = {}
   const res = await axios.get('/api/user-animals', { withCredentials: true })
@@ -181,14 +143,6 @@ export async function createAnimalClones() {
       willChange: "transform",
       margin: "0px"
     })
-
-    // animals.forEach(element => {
-    //   if (element.name == baseId){
-    //     clone.src = element.image
-    //   }
-    // });
-    
-    
     dz.appendChild(clone)
   })
 }
@@ -249,7 +203,6 @@ export async function enableDragDrop() {
 
         if (splitedId.number === 0) {
           clone.style.position = 'relative'
-          // clone.style.transform = `translate(0px, 0px)`
           clone.style.margin = 0
           clone.classList.add('draggable', 'animal')
           clone.id = splitedId.letters + '-0'
@@ -364,53 +317,6 @@ const isRecording = ref(false)
 let recorder = null
 let recordedChunks = []
 
-// async function downloadBeat() {
-//   if (isRecording.value) return
-
-//   isRecording.value = true
-//   recordedChunks = []
-
-//   await Tone.start() // ensure AudioContext is running
-
-//   // Route all sounds through a recorder
-//   const dest = Tone.context.createMediaStreamDestination()
-//   for (const pool of Object.values(animalPlayers)) {
-//     const players = Array.isArray(pool) ? pool : [pool]
-//     players.forEach(player => {
-//       if (player && player.output) player.connect(dest)
-//     })
-//   }
-
-//   // Create a MediaRecorder from that destination
-//   recorder = new MediaRecorder(dest.stream)
-//   recorder.ondataavailable = (e) => {
-//     if (e.data.size > 0) recordedChunks.push(e.data)
-//   }
-
-//   recorder.onstop = () => {
-//     const blob = new Blob(recordedChunks, { type: 'audio/wav' })
-//     const url = URL.createObjectURL(blob)
-//     const a = document.createElement('a')
-//     a.href = url
-//     a.download = 'animal-beat.wav'
-//     document.body.appendChild(a)
-//     a.click()
-//     document.body.removeChild(a)
-//     URL.revokeObjectURL(url)
-//     isRecording.value = false
-//   }
-
-//   recorder.start()
-
-//   // Play the beat
-//   playAnimalBeat()
-
-//   // Stop after timeline.length seconds
-//   setTimeout(() => {
-//     stopAnimalBeat()
-//     recorder.stop()
-//   }, timeline.length * 1000)
-// }
 
 export async function playAnimalBeat() {
   stopAnimalBeat()
