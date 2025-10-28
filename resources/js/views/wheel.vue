@@ -86,13 +86,6 @@ async function spinWheel() {
 
 
   setTimeout(async () => {
-    // const segmentSize = 360 / wheelSegments.value.length;
-    // const normalizedAngle = (angle + 180 + segmentSize) % 360;
-    // const pointerAngle = (segmentSize / 2) % 360;
-    // const index = Math.floor(pointerAngle / segmentSize);
-    // const result = wheelSegments.value[index];
-    // console.log(segmentSize)
-    // console.log(index)
 
     const segmentLenghtGrados = 360 / wheelSegments.value 
 
@@ -112,10 +105,6 @@ async function spinWheel() {
     console.log(index)
     currentSegment.value = result;
     
-    
-
-    // currentSegment.value = result;
-
     // If user lands on money
     if (result.type === 'money') {
         balance.value += result.amount;
@@ -129,12 +118,7 @@ async function spinWheel() {
         await updateBalance("reset");
         message.value = "💸 Bankrupt!";
     }
-    // If user lands on unlockable animal
-    // else if (unlockableAnimals.value.find(a => a.name === result)) {
-    //   await unlockAnimal(result);
-    //   message.value = `🎉 You unlocked a new animal: ${result}!`;
-    // }
-    // If bankrupt
+
     else if (result === "Bankrupt") {
       balance.value = 0;
       await updateBalance("reset");
@@ -247,23 +231,6 @@ async function redeemGiftCode() {
 
 
 const balance = ref(0);
-// const unlockableAnimals = ref([]);
-
-// async function loadBalance() {
-//     try {
-//         const res = await axios.get("/api/balance", {
-//             headers: {
-//                 Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-//             },
-//         });
-//         console.log("balance")
-//         console.log(res.data)
-//         balance.value = res.data.balance;
-//         console.log(balance)
-//     } catch (error) {
-//         console.error('Error loading balance:', error);
-//     }
-// }
 
 onMounted(async () => {
     // Load spin history from localStorage
@@ -440,7 +407,6 @@ async function unlockAnimal(name) {
                             >
 
                             <div v-if="segment.type === 'animal'">
-                                <!-- <img :src="segment.image" class="animal-icon" /> -->
                                 <p>{{ segment.label }}</p>
                             </div>
 
@@ -450,9 +416,6 @@ async function unlockAnimal(name) {
                         </div>
                     </div>
 
-
-                    <!-- <div class="pointer-base"></div>
-                    <div class="pointer">▼</div> -->
                     <div class="wheel-center">SPIN</div>
                 </div>
             </div>
@@ -475,9 +438,6 @@ async function unlockAnimal(name) {
                     <div class="result" :class="{ pulse: currentSegment }">
                         {{ currentSegment.label || "-" }}
                     </div>
-                    <!-- <div class="balance-display">
-            💰 Your Balance: ${{ balance }}
-          </div> -->
                 </div>
 
                 <div class="gift-code-section">
@@ -1186,66 +1146,6 @@ async function unlockAnimal(name) {
   /* transform: rotate(210deg); */
 }
 
-/* .segment {
-  position: absolute;
-  width: 50%;
-  height: 50%;
-  top: 50%;
-  left: 50%;
-  transform-origin: 0% 0%;
-  display: flex;
-  flex-direction: column;
-  align-items:last baseline;
-  /* justify-content: center;  *//*
-  color: #000;
-  font-weight: bold;
-  border: 1px solid #000;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
-} */
-
-/* .wheel-wrapper {
-  width: 300px;
-  height: 300px;
-}
-
-.wheel {
-  width: 300px;
-  height: 300px;
-} */
-
-/* .segment {
-  position: absolute;
-  width: 50%;
-  height: 50%;
-  top: 50%;
-  left: 50%;
-  transform-origin: 0% 0%;
-  display: flex;
-  flex-direction: column;
-  align-items:last baseline;
-  /*justify-content: center;*/ /*
-  color: #000;
-  font-weight: bold;
-  border: 1px solid #000;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8); 
-}*/
-/*.segment {
-  position: absolute;
-  width: 50%;
-  height: 50%;
-  top: 50%;
-  left: 50%;
-  transform-origin: 0% 0%;
-  clip-path: polygon(0% 0%, 100% 0%, 0% 100%);
-  display: flex;
-  align-items:last baseline;
-  /* justify-content: center;  *//*
-  color: #000;
-  font-weight: bold;
-  border: 1px solid #000;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
-  overflow: hidden;
-}*/
 .segment {
   position: absolute;
   width: 50%;
